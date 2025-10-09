@@ -1,0 +1,242 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(222, 47%, 11%);
+  --foreground: hsl(210, 40%, 98%);
+  --card: hsl(222, 47%, 15%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --popover: hsl(222, 47%, 15%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --primary: hsl(243, 75%, 59%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(188, 94%, 43%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --muted: hsl(215, 20%, 45%);
+  --muted-foreground: hsl(215, 16%, 65%);
+  --accent: hsl(38, 92%, 50%);
+  --accent-foreground: hsl(222, 47%, 11%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(217, 33%, 24%);
+  --input: hsl(217, 33%, 24%);
+  --ring: hsl(243, 75%, 59%);
+  --success: hsl(142, 76%, 36%);
+  --success-foreground: hsl(210, 40%, 98%);
+  --chart-1: hsl(243, 75%, 59%);
+  --chart-2: hsl(188, 94%, 43%);
+  --chart-3: hsl(38, 92%, 50%);
+  --chart-4: hsl(328, 86%, 70%);
+  --chart-5: hsl(142, 76%, 36%);
+  --sidebar: hsl(222, 47%, 15%);
+  --sidebar-foreground: hsl(210, 40%, 98%);
+  --sidebar-primary: hsl(243, 75%, 59%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(211, 51%, 92%);
+  --sidebar-accent-foreground: hsl(243, 75%, 59%);
+  --sidebar-border: hsl(205, 25%, 90%);
+  --sidebar-ring: hsl(243, 75%, 59%);
+  --font-sans: "Inter", sans-serif;
+  --font-display: "Orbitron", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: hsl(222, 47%, 11%);
+  --foreground: hsl(210, 40%, 98%);
+  --card: hsl(222, 47%, 15%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --popover: hsl(222, 47%, 15%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --primary: hsl(243, 75%, 59%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(188, 94%, 43%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --muted: hsl(215, 20%, 45%);
+  --muted-foreground: hsl(215, 16%, 65%);
+  --accent: hsl(38, 92%, 50%);
+  --accent-foreground: hsl(222, 47%, 11%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(217, 33%, 24%);
+  --input: hsl(217, 33%, 24%);
+  --ring: hsl(243, 75%, 59%);
+  --success: hsl(142, 76%, 36%);
+  --success-foreground: hsl(210, 40%, 98%);
+  --chart-1: hsl(243, 75%, 59%);
+  --chart-2: hsl(188, 94%, 43%);
+  --chart-3: hsl(38, 92%, 50%);
+  --chart-4: hsl(328, 86%, 70%);
+  --chart-5: hsl(142, 76%, 36%);
+  --sidebar: hsl(222, 47%, 15%);
+  --sidebar-foreground: hsl(210, 40%, 98%);
+  --sidebar-primary: hsl(243, 75%, 59%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(211, 51%, 92%);
+  --sidebar-accent-foreground: hsl(243, 75%, 59%);
+  --sidebar-border: hsl(205, 25%, 90%);
+  --sidebar-ring: hsl(243, 75%, 59%);
+  --font-sans: "Inter", sans-serif;
+  --font-display: "Orbitron", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground overflow-x-hidden;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Cosmic Background Animation */
+.cosmic-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(ellipse at top, hsl(243 75% 25% / 0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, hsl(188 94% 25% / 0.2) 0%, transparent 50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cosmic-particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(2px 2px at 20% 30%, white, transparent),
+    radial-gradient(2px 2px at 60% 70%, white, transparent),
+    radial-gradient(1px 1px at 50% 50%, white, transparent),
+    radial-gradient(1px 1px at 80% 10%, white, transparent),
+    radial-gradient(2px 2px at 90% 60%, white, transparent),
+    radial-gradient(1px 1px at 33% 33%, white, transparent);
+  background-size: 200% 200%;
+  background-position: 0% 0%;
+  opacity: 0.3;
+  z-index: 0;
+  pointer-events: none;
+  animation: particle-drift 60s linear infinite;
+}
+
+@keyframes particle-drift {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+.content-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glassmorphism Effect */
+.glass-card {
+  background: hsl(222, 47%, 15%, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(217, 33%, 24%, 0.5);
+}
+
+/* Glow Effects */
+.glow-primary {
+  box-shadow: 0 0 20px hsl(243, 75%, 59%, 0.3);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 20px hsl(188, 94%, 43%, 0.3);
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px hsl(38, 92%, 50%, 0.3);
+}
+
+/* Progress Ring Animation */
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+/* Badge Animation */
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* Hover Glow */
+.hover-glow {
+  transition: all 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 30px hsl(243, 75%, 59%, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Streak Fire Animation */
+@keyframes fire-flicker {
+  0%, 100% { opacity: 1; transform: translateY(0); }
+  50% { opacity: 0.8; transform: translateY(-2px); }
+}
+
+.fire-icon {
+  animation: fire-flicker 1s ease-in-out infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(222, 47%, 15%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(243, 75%, 59%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(243, 75%, 69%);
+}
+
+/* Navbar Active State */
+.nav-active {
+  background: hsl(243, 75%, 59%, 0.2);
+  border-bottom: 2px solid hsl(243, 75%, 59%);
+}
+
+/* Confetti Animation */
+@keyframes confetti {
+  0% { transform: rotateZ(15deg) rotateY(0deg) translate(0, 0); }
+  25% { transform: rotateZ(5deg) rotateY(360deg) translate(-5vw, 20vh); }
+  50% { transform: rotateZ(15deg) rotateY(720deg) translate(5vw, 60vh); }
+  75% { transform: rotateZ(5deg) rotateY(1080deg) translate(-10vw, 80vh); }
+  100% { transform: rotateZ(15deg) rotateY(1440deg) translate(10vw, 100vh); }
+}
+
+.confetti {
+  animation: confetti 3s ease-in-out infinite;
+}
