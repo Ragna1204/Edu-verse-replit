@@ -1,0 +1,74 @@
+You are an advanced full-stack developer tasked with building a complete **AI-powered gamified learning web app** called **EduVerse**. The goal is to make an engaging, adaptive, and intelligent education platform for students, combining AI tutoring, gamification, and personalized analytics.
+
+**Core Requirements:**
+
+1. **Tech Stack**
+
+   * Frontend: React + TailwindCSS
+   * Backend: FastAPI (Python)
+   * Database: PostgreSQL (via SQLAlchemy)
+   * Authentication: Email/Password & Google OAuth
+   * AI APIs: Gemini + OpenAI integration (use `.env` for keys)
+   * Hosting-ready structure for Replit (frontend + backend folders)
+
+2. **Main Features**
+
+   * AI-powered tutoring assistant that answers questions interactively.
+   * Course & Quiz Management:
+
+     * Users can browse, enroll in, and complete courses.
+     * Each topic has quizzes that adapt in difficulty:
+
+       * Correct answers → progressively harder questions.
+       * Incorrect answers → easier, reinforcing questions.
+       * Use AI to dynamically generate or adjust quiz questions.
+   * Personalized Dashboard with analytics:
+
+     * Track progress, accuracy, time spent, and weak areas.
+     * Show adaptive recommendations for improvement.
+   * Gamification:
+
+     * XP points, badges, streaks, level progression.
+     * Leaderboard with rankings among peers.
+   * AI-driven Resource Recommendations:
+
+     * Suggest learning materials (videos, PDFs, notes) based on weaknesses.
+   * Educator Mode:
+
+     * Teachers can upload or manage courses and quizzes.
+   * Community Page:
+
+     * Users can share progress, tips, and challenges.
+
+3. **System Design**
+
+   * `frontend/` → React app (with Tailwind)
+   * `backend/` → FastAPI app with modular routes:
+
+     * `/api/users`, `/api/courses`, `/api/quizzes`, `/api/ai`, `/api/analytics`
+   * Use JWT authentication and role-based access (student/teacher/admin).
+   * `.env` → `DATABASE_URL`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `SECRET_KEY`
+   * Include Dockerfile for optional containerization.
+
+4. **UI Design**
+
+   * Clean, futuristic, gamified interface with a cosmic “EduVerse” theme.
+   * Dashboard should feature progress rings, animated badges, and dynamic cards.
+   * Responsive for both desktop and mobile.
+
+5. **Extra Innovation**
+
+   * Add an “AI Mentor” avatar (Gemini API) that interacts with students in natural dialogue.
+   * Add a “Challenge Mode” where students can compete in timed AI-generated quizzes.
+   * Include motivational elements: confetti, sounds, streak reminders.
+
+**Deliverables**
+
+* A fully functional app with:
+
+  * Backend running on FastAPI (port 8000)
+  * Frontend running on React (port 3000)
+* Auto-link the two using CORS.
+* Initialize git repo and README with project setup instructions.
+
+Make it **unique, polished, and production-ready**, as if being submitted for a top-tier university or startup pitch competition.
