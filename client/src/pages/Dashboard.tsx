@@ -6,6 +6,8 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import Layout from "@/components/Layout";
 import ProgressRing from "@/components/ProgressRing";
 import Badge from "@/components/Badge";
+import ActivityItem from "@/components/ActivityItem";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -112,71 +114,11 @@ const { user } = useAuth();
             {/* Left Column: Progress & Stats */}
             <div className="lg:col-span-2 space-y-6">
               {/* Progress Overview */}
-              <Card className="glass-card border-primary/20 shadow-lg shadow-primary/10">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <TrendingUp className="w-5 h-5 text-primary mr-3" />
-                    Learning Progress
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Overall Progress */}
-                    <div className="flex flex-col items-center">
-                      <ProgressRing 
-                        progress={latestAnalytics?.coursesCompleted ? (latestAnalytics.coursesCompleted / 10) * 100 : 0}
-                        size={120}
-                        strokeWidth={8}
-                        className="mb-3"
-                      />
-                      <div className="text-center">
-                        <div className="text-sm font-semibold">Overall Progress</div>
-                        <div className="text-xs text-muted-foreground">
-                          {latestAnalytics?.coursesCompleted || 0} courses completed
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quiz Accuracy */}
-                    <div className="flex flex-col items-center">
-                      <ProgressRing 
-                        progress={latestAnalytics?.accuracyRate || 0}
-                        size={120}
-                        strokeWidth={8}
-                        className="mb-3"
-                        gradient="secondary"
-                      />
-                      <div className="text-center">
-                        <div className="text-sm font-semibold">Quiz Accuracy</div>
-                        <div className="text-xs text-muted-foreground">
-                          {latestAnalytics?.quizzesCompleted || 0} quizzes completed
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Time Spent */}
-                    <div className="flex flex-col items-center">
-                      <ProgressRing 
-                        progress={Math.min((latestAnalytics?.timeSpent || 0) / 100, 100)}
-                        size={120}
-                        strokeWidth={8}
-                        className="mb-3"
-                        gradient="accent"
-                      />
-                      <div className="text-center">
-                        <div className="text-sm font-semibold">Time This Week</div>
-                        <div className="text-xs text-muted-foreground">
-                          {Math.floor((latestAnalytics?.timeSpent || 0) / 60)} hours spent
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <AnalyticsDashboard />
 
               {/* Current Course Progress */}
               {currentCourse && (
-                <Card className="glass-card">
+                <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <span className="flex items-center">
@@ -207,8 +149,21 @@ const { user } = useAuth();
                 </Card>
               )}
 
+              import ActivityItem from "@/components/ActivityItem";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ... inside the Dashboard component, after the userBadges query
+
+  const { data: recentActivity, isLoading: activityLoading } = useQuery({
+    queryKey: ["/api/user/recent-activity"],
+    enabled: isAuthenticated && !isLoading,
+    retry: false,
+  });
+
+// ... inside the return statement, replace the Recent Activity Card
+
               {/* Recent Activity */}
-              <Card className="glass-card">
+              <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Clock className="w-5 h-5 text-accent mr-3" />
@@ -217,11 +172,26 @@ const { user } = useAuth();
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {/* Show empty state if no activities */}
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Start learning to see your recent activities here</p>
-                    </div>
+                    {activityLoading ? (
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="flex items-start space-x-4 p-3">
+                          <Skeleton className="w-5 h-5 rounded-full" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      ))
+                    ) : recentActivity && recentActivity.length > 0 ? (
+                      recentActivity.map((activity: any) => (
+                        <ActivityItem key={activity.id} activity={activity} />
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>Start learning to see your recent activities here</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -230,7 +200,7 @@ const { user } = useAuth();
             {/* Right Column: Level & Badges */}
             <div className="space-y-6">
               {/* Level Card */}
-              <Card className="glass-card border-accent/20 shadow-lg shadow-accent/10">
+              <Card className="glass-card border-accent/20 shadow-lg shadow-accent/10 transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                 <CardContent className="p-6 text-center">
                   <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-4xl font-display font-bold">
                     <span>{level}</span>
@@ -254,7 +224,7 @@ const { user } = useAuth();
               </Card>
 
               {/* Badges */}
-              <Card className="glass-card">
+              <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center">
@@ -292,7 +262,7 @@ const { user } = useAuth();
               </Card>
 
               {/* AI Recommendations */}
-              <Card className="glass-card">
+              <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Lightbulb className="w-5 h-5 text-accent mr-2" />

@@ -17,6 +17,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
+
+      if (user) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
+        lastActive?.setHours(0, 0, 0, 0);
+
+        if (!lastActive || lastActive.getTime() < today.getTime()) {
+          // User was not active today
+          const yesterday = new Date(today);
+          yesterday.setDate(today.getDate() - 1);
+
+          if (lastActive && lastActive.getTime() === yesterday.getTime()) {
+            // Active yesterday, increment streak
+            await storage.updateUserStreak(userId, (user.streak || 0) + 1);
+          } else {
+            // Not active yesterday, reset streak
+            await storage.updateUserStreak(userId, 1);
+          }
+        }
+      }
+
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -67,6 +89,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const course = await storage.createCourse(courseData);
       res.status(201).json(course);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error creating course:", error);
       res.status(500).json({ message: "Failed to create course" });
     }
@@ -101,11 +126,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { courseId } = req.params;
-      const { progress, completedModules } = req.body;
+      const { progress, completedModules } = updateEnrollmentProgressSchema.parse(req.body);
       
       await storage.updateEnrollmentProgress(userId, courseId, progress, completedModules);
       res.json({ message: "Progress updated successfully" });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error updating progress:", error);
       res.status(500).json({ message: "Failed to update progress" });
     }
@@ -141,6 +169,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quiz = await storage.createQuiz(quizData);
       res.status(201).json(quiz);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error creating quiz:", error);
       res.status(500).json({ message: "Failed to create quiz" });
     }
@@ -165,6 +196,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attempt = await storage.submitQuizAttempt(attemptData);
       res.status(201).json(attempt);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error submitting quiz attempt:", error);
       res.status(500).json({ message: "Failed to submit quiz attempt" });
     }
@@ -184,10 +218,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI-powered quiz generation
   app.post('/api/ai/generate-quiz', isAuthenticated, async (req: any, res) => {
     try {
-      const { topic, difficulty, count } = req.body;
+      const { topic, difficulty, count } = generateQuizQuestionsSchema.parse(req.body);
       const questions = await generateQuizQuestions(topic, difficulty, count);
       res.json({ questions });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error generating quiz:", error);
       res.status(500).json({ message: "Failed to generate quiz" });
     }
@@ -208,12 +245,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/quizzes/sessions/:sessionId/submit', isAuthenticated, async (req: any, res) => {
     const { sessionId } = req.params;
-    const { questionId, selectedOption } = req.body;
-
     try {
+      const { questionId, selectedOption } = submitAnswerSchema.parse(req.body);
+
       const data = await submitAnswer(sessionId, questionId, selectedOption);
       res.json(data);
     } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -303,6 +343,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const post = await storage.createPost(postData);
       res.status(201).json(post);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error creating post:", error);
       res.status(500).json({ message: "Failed to create post" });
     }
@@ -324,10 +367,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Tutor routes
   app.post('/api/ai/tutor', isAuthenticated, async (req: any, res) => {
     try {
-      const { question, context } = req.body;
+      const { question, context } = aiTutorRequestSchema.parse(req.body);
       const response = await generateTutorResponse(question, context);
       res.json({ response });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error getting tutor response:", error);
       res.status(500).json({ message: "Failed to get tutor response" });
     }
@@ -344,6 +390,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversation = await storage.saveConversation(conversationData);
       res.status(201).json(conversation);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error saving conversation:", error);
       res.status(500).json({ message: "Failed to save conversation" });
     }
@@ -373,6 +422,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/user/recent-activity', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const activities = await storage.getRecentActivity(userId);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
+      res.status(500).json({ message: "Failed to fetch recent activity" });
+    }
+  });
+
+  app.get('/api/user/analytics/summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { days = 30 } = req.query; // Default to 30 days
+      const summary = await storage.getAnalyticsSummary(userId, parseInt(days as string));
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching analytics summary:", error);
+      res.status(500).json({ message: "Failed to fetch analytics summary" });
+    }
+  });
+
+  app.get('/api/user/analytics/accuracy-by-topic', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const accuracyByTopic = await storage.getAccuracyRatePerTopic(userId);
+      res.json(accuracyByTopic);
+    } catch (error) {
+      console.error("Error fetching accuracy by topic:", error);
+      res.status(500).json({ message: "Failed to fetch accuracy by topic" });
+    }
+  });
+
+  app.get('/api/educator/courses', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.isEducator) {
+        return res.status(403).json({ message: "Only educators can access this resource" });
+      }
+
+      const courses = await storage.getEducatorCourses(userId);
+      res.json(courses);
+    } catch (error) {
+      console.error("Error fetching educator courses:", error);
+      res.status(500).json({ message: "Failed to fetch educator courses" });
+    }
+  });
+
+  app.get('/api/educator/quizzes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.isEducator) {
+        return res.status(403).json({ message: "Only educators can access this resource" });
+      }
+
+      const quizzes = await storage.getEducatorQuizzes(userId);
+      res.json(quizzes);
+    } catch (error) {
+      console.error("Error fetching educator quizzes:", error);
+      res.status(500).json({ message: "Failed to fetch educator quizzes" });
+    }
+  });
+
+  app.get('/api/quizzes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.isEducator) {
+        return res.status(403).json({ message: "Only educators can access this resource" });
+      }
+
+      const { id } = req.params;
+      const quiz = await storage.getQuiz(id);
+
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Ensure the educator owns the quiz
+      if (quiz.educatorId !== userId) {
+        return res.status(403).json({ message: "You do not own this quiz" });
+      }
+
+      res.json(quiz);
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+      res.status(500).json({ message: "Failed to fetch quiz" });
+    }
+  });
+
+  app.put('/api/quizzes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.isEducator) {
+        return res.status(403).json({ message: "Only educators can access this resource" });
+      }
+
+      const { id } = req.params;
+      const quizData = insertQuizSchema.parse(req.body); // Validate incoming data
+
+      const existingQuiz = await storage.getQuiz(id);
+      if (!existingQuiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Ensure the educator owns the quiz
+      if (existingQuiz.educatorId !== userId) {
+        return res.status(403).json({ message: "You do not own this quiz" });
+      }
+
+      const updatedQuiz = await storage.updateQuiz(id, quizData);
+      res.json(updatedQuiz);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error updating quiz:", error);
+      res.status(500).json({ message: "Failed to update quiz" });
+    }
+  });
+
   // AI-powered recommendations
   app.get('/api/ai/recommendations', isAuthenticated, async (req: any, res) => {
     try {
@@ -399,11 +577,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/user/xp', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { xp } = req.body;
+      const { xp } = updateXPSchema.parse(req.body);
       
       await storage.updateUserXP(userId, xp);
       res.json({ message: "XP updated successfully" });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error updating XP:", error);
       res.status(500).json({ message: "Failed to update XP" });
     }
@@ -412,11 +593,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/user/streak', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { streak } = req.body;
+      const { streak } = updateStreakSchema.parse(req.body);
       
       await storage.updateUserStreak(userId, streak);
       res.json({ message: "Streak updated successfully" });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       console.error("Error updating streak:", error);
       res.status(500).json({ message: "Failed to update streak" });
     }

@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 interface ProgressRingProps {
   progress: number; // 0-100
   size?: number;
@@ -13,9 +15,16 @@ export default function ProgressRing({
   className = "",
   gradient = "primary"
 }: ProgressRingProps) {
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+
+  useEffect(() => {
+    const animation = requestAnimationFrame(() => setAnimatedProgress(progress));
+    return () => cancelAnimationFrame(animation);
+  }, [progress]);
+
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const strokeDashoffset = circumference - (animatedProgress / 100) * circumference;
 
   const gradientColors = {
     primary: { from: "hsl(243 75% 59%)", to: "hsl(188 94% 43%)" },
@@ -61,14 +70,14 @@ export default function ProgressRing({
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className="transition-all duration-500 ease-in-out"
+          className="transition-all duration-1000 ease-out"
         />
       </svg>
       
       {/* Progress text */}
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="text-2xl font-bold text-foreground">
-          {Math.round(progress)}%
+          {Math.round(animatedProgress)}%
         </span>
       </div>
     </div>

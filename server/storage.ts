@@ -41,6 +41,7 @@ export interface IStorage {
   getCourse(id: string): Promise<Course | undefined>;
   createCourse(course: InsertCourse): Promise<Course>;
   updateCourse(id: string, updates: Partial<InsertCourse>): Promise<Course>;
+  getEducatorCourses(educatorId: string): Promise<Course[]>;
   
   // Enrollment operations
   enrollUser(userId: string, courseId: string): Promise<Enrollment>;
@@ -50,8 +51,11 @@ export interface IStorage {
   // Quiz operations
   getQuizzesByCourse(courseId: string): Promise<Quiz[]>;
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
+  getQuiz(id: string): Promise<Quiz | undefined>;
+  updateQuiz(id: string, updates: Partial<InsertQuiz>): Promise<Quiz>;
   submitQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getUserQuizAttempts(userId: string): Promise<QuizAttempt[]>;
+  getEducatorQuizzes(educatorId: string): Promise<Quiz[]>;
   
   // Badge operations
   getBadges(): Promise<Badge[]>;
@@ -74,6 +78,9 @@ export interface IStorage {
   updateUserXP(userId: string, xp: number): Promise<void>;
   updateUserStreak(userId: string, streak: number): Promise<void>;
   getUserAnalytics(userId: string, days: number): Promise<any[]>;
+  getRecentActivity(userId: string): Promise<any[]>;
+  getAnalyticsSummary(userId: string, days: number): Promise<any[]>;
+  getAccuracyRatePerTopic(userId: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -131,6 +138,10 @@ export class DatabaseStorage implements IStorage {
     return updatedCourse;
   }
 
+  async getEducatorCourses(educatorId: string): Promise<Course[]> {
+    return await db.select().from(courses).where(eq(courses.educatorId, educatorId)).orderBy(desc(courses.createdAt));
+  }
+
   // Enrollment operations
   async enrollUser(userId: string, courseId: string): Promise<Enrollment> {
     const [enrollment] = await db
@@ -174,6 +185,20 @@ export class DatabaseStorage implements IStorage {
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     const [newQuiz] = await db.insert(quizzes).values(quiz).returning();
     return newQuiz;
+  }
+
+  async getQuiz(id: string): Promise<Quiz | undefined> {
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, id));
+    return quiz;
+  }
+
+  async updateQuiz(id: string, updates: Partial<InsertQuiz>): Promise<Quiz> {
+    const [updatedQuiz] = await db
+      .update(quizzes)
+      .set({ ...updates, updatedAt: new Date() }) // Assuming quizzes table has updatedAt
+      .where(eq(quizzes.id, id))
+      .returning();
+    return updatedQuiz;
   }
 
   async submitQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
@@ -220,6 +245,10 @@ export class DatabaseStorage implements IStorage {
 
   async getUserQuizAttempts(userId: string): Promise<QuizAttempt[]> {
     return await db.select().from(quizAttempts).where(eq(quizAttempts.userId, userId));
+  }
+
+  async getEducatorQuizzes(educatorId: string): Promise<Quiz[]> {
+    return await db.select().from(quizzes).where(eq(quizzes.educatorId, educatorId)).orderBy(desc(quizzes.createdAt));
   }
 
   // Badge operations
@@ -359,6 +388,100 @@ export class DatabaseStorage implements IStorage {
         gte(userAnalytics.date, dateFrom)
       ))
       .orderBy(desc(userAnalytics.date));
+  }
+
+  async getRecentActivity(userId: string): Promise<any[]> {
+    const enrollmentActivity = await db
+      .select({
+        type: sql`'course_enrollment' as type`,
+        title: courses.title,
+        date: enrollments.enrolledAt,
+        id: enrollments.id
+      })
+      .from(enrollments)
+      .innerJoin(courses, eq(enrollments.courseId, courses.id))
+      .where(eq(enrollments.userId, userId))
+      .orderBy(desc(enrollments.enrolledAt))
+      .limit(5);
+
+    const quizActivity = await db
+      .select({
+        type: sql`'quiz_completed' as type`,
+        title: quizzes.title,
+        date: quizAttempts.completedAt,
+        id: quizAttempts.id
+      })
+      .from(quizAttempts)
+      .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
+      .where(eq(quizAttempts.userId, userId))
+      .orderBy(desc(quizAttempts.completedAt))
+      .limit(5);
+
+    const badgeActivity = await db
+      .select({
+        type: sql`'badge_earned' as type`,
+        title: badges.name,
+        date: userBadges.earnedAt,
+        id: userBadges.id
+      })
+      .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.earnedAt))
+      .limit(5);
+
+    const allActivities = [
+      ...enrollmentActivity,
+      ...quizActivity,
+      ...badgeActivity,
+    ];
+
+    allActivities.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    return allActivities.slice(0, 5);
+  }
+
+  async getAnalyticsSummary(userId: string, days: number): Promise<any[]> {
+    const dateFrom = new Date();
+    dateFrom.setDate(dateFrom.getDate() - days);
+
+    const analyticsData = await db
+      .select()
+      .from(userAnalytics)
+      .where(and(
+        eq(userAnalytics.userId, userId),
+        gte(userAnalytics.date, dateFrom)
+      ))
+      .orderBy(userAnalytics.date);
+
+    let accumulatedXp = 0;
+    const summary = analyticsData.map(data => {
+      accumulatedXp += data.xpEarned || 0;
+      return {
+        date: data.date.toISOString().split('T')[0],
+        xpEarned: data.xpEarned || 0,
+        accumulatedXp: accumulatedXp,
+        quizzesCompleted: data.quizzesCompleted || 0,
+        accuracyRate: data.accuracyRate || 0,
+      };
+    });
+
+    return summary;
+  }
+
+  async getAccuracyRatePerTopic(userId: string): Promise<any[]> {
+    const result = await db
+      .select({
+        topic: courses.category,
+        averageScore: sql<number>`AVG(${quizAttempts.score})`.mapWith(Number),
+      })
+      .from(quizAttempts)
+      .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
+      .innerJoin(courses, eq(quizzes.courseId, courses.id))
+      .where(eq(quizAttempts.userId, userId))
+      .groupBy(courses.category);
+
+    return result;
   }
 }
 

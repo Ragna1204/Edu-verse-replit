@@ -1,18 +1,6 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import { Navigation } from "@/components/Navigation";
-import { CourseCatalog } from "@/components/CourseCatalog";
-import AdaptiveQuiz from "@/components/AdaptiveQuiz";
-import { Leaderboard } from "@/components/Leaderboard";
-import { AITutor } from "@/components/AITutor";
-import { Community } from "@/components/Community";
-import Home from "@/pages/Home";
-import Landing from "@/pages/Landing";
-import NotFound from "@/pages/not-found";
+import CourseForm from "@/pages/educator/CourseForm";
+import EducatorQuizzes from "@/pages/educator/Quizzes";
+import QuizForm from "@/pages/educator/QuizForm";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -45,10 +33,6 @@ function Router() {
         <>
           <Navigation />
           <Route path="/" component={Home} />
-import Courses from "@/pages/Courses";
-
-// ... (rest of the file)
-
           <Route path="/courses">
             {() => (
               <>
@@ -104,22 +88,86 @@ import Courses from "@/pages/Courses";
               </>
             )}
           </Route>
+          <Route path="/educator">
+            {() => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <EducatorDashboard />
+                </div>
+              </>
+            )}
+          </Route>
+          <Route path="/educator/courses">
+            {() => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <EducatorCourses />
+                </div>
+              </>
+            )}
+          </Route>
+          <Route path="/educator/courses/new">
+            {() => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <CourseForm />
+                </div>
+              </>
+            )}
+          </Route>
+          <Route path="/educator/courses/edit/:id">
+            {(params) => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <CourseForm id={params.id} />
+                </div>
+              </>
+            )}
+          </Route>
+          <Route path="/educator/quizzes">
+            {() => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <EducatorQuizzes />
+                </div>
+              </>
+            )}
+          </Route>
+          <Route path="/educator/quizzes/new">
+            {() => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <QuizForm />
+                </div>
+              </>
+            )}
+          </Route>
+          <Route path="/educator/quizzes/edit/:id">
+            {(params) => (
+              <>
+                <div className="cosmic-bg"></div>
+                <div className="cosmic-particles"></div>
+                <div className="content-wrapper">
+                  <QuizForm id={params.id} />
+                </div>
+              </>
+            )}
+          </Route>
         </>
       )}
       <Route component={NotFound} />
     </Switch>
   );
 }
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
-
-export default App;

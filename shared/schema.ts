@@ -376,3 +376,32 @@ export const insertAiConversationSchema = createInsertSchema(aiConversations).om
   createdAt: true,
   updatedAt: true,
 });
+
+export const updateEnrollmentProgressSchema = z.object({
+  progress: z.number().min(0).max(100),
+  completedModules: z.number().min(0),
+});
+
+export const generateQuizQuestionsSchema = z.object({
+  topic: z.string().min(1),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  count: z.number().min(1).max(10),
+});
+
+export const submitAnswerSchema = z.object({
+  questionId: z.string().min(1),
+  selectedOption: z.string().min(1), // Assuming selected option is a string ID or value
+});
+
+export const aiTutorRequestSchema = z.object({
+  question: z.string().min(1),
+  context: z.string().optional(),
+});
+
+export const updateXPSchema = z.object({
+  xp: z.number().min(0),
+});
+
+export const updateStreakSchema = z.object({
+  streak: z.number().min(0),
+});

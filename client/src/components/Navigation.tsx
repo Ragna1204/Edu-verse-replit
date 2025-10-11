@@ -123,7 +123,7 @@ export function Navigation() {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               data-testid="button-mobile-menu"
             >
-              <i className="fas fa-bars text-xl"></i>
+              <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
             </button>
           </div>
         </div>
@@ -134,42 +134,67 @@ export function Navigation() {
             <div className="flex flex-col space-y-2">
               <Link 
                 href="/" 
-                className="px-3 py-2 rounded-md text-sm font-medium text-foreground hover:bg-primary/10"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-home mr-2"></i>Dashboard
               </Link>
               <Link 
                 href="/courses" 
-                className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/courses') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-book mr-2"></i>Courses
               </Link>
               <Link 
                 href="/leaderboard" 
-                className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/leaderboard') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-trophy mr-2"></i>Leaderboard
               </Link>
               <Link 
                 href="/community" 
-                className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/community') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-users mr-2"></i>Community
               </Link>
               <Link 
                 href="/ai-tutor" 
-                className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-primary"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/ai-tutor') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-robot mr-2"></i>AI Tutor
               </Link>
+
+              {/* User Profile in Mobile Menu */}
+              <div className="flex items-center space-x-2 px-3 py-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                  {user?.profileImageUrl ? (
+                    <img src={user.profileImageUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-bold">
+                      {user?.firstName?.[0]}{user?.lastName?.[0]}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-medium">{user?.firstName} {user?.lastName}</span>
+              </div>
+
               <a 
                 href="/api/logout" 
-                className="px-3 py-2 rounded-md text-sm font-medium text-destructive"
+                className="px-3 py-2 rounded-md text-sm font-medium text-destructive hover:bg-destructive/10"
               >
                 <i className="fas fa-sign-out-alt mr-2"></i>Logout
               </a>
