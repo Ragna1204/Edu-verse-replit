@@ -1,6 +1,5 @@
 import React from 'react';
 import { HeroSection } from '@/components/HeroSection';
-import { StudentDashboard } from '@/components/StudentDashboard';
 
 export default function Home() {
   return (
@@ -12,7 +11,7 @@ export default function Home() {
       {/* Content Wrapper */}
       <div className="content-wrapper">
         <HeroSection />
-        <StudentDashboard />
+        <div></div>
       </div>
     </>
   );

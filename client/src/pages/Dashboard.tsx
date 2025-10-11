@@ -25,20 +25,22 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
 
+const { user } = useAuth();
+
   const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useQuery({
-    queryKey: ["/api/analytics"],
+    queryKey: ["/api/user/analytics"],
     enabled: isAuthenticated && !isLoading,
     retry: false,
   });
 
   const { data: userCourses, isLoading: coursesLoading, error: coursesError } = useQuery({
-    queryKey: ["/api/my-courses"],
+    queryKey: ["/api/user/enrollments"],
     enabled: isAuthenticated && !isLoading,
     retry: false,
   });
 
   const { data: userBadges, isLoading: badgesLoading, error: badgesError } = useQuery({
-    queryKey: ["/api/my-badges"],
+    queryKey: ["/api/user/badges"],
     enabled: isAuthenticated && !isLoading,
     retry: false,
   });
@@ -86,8 +88,12 @@ export default function Dashboard() {
   }
 
   const currentCourse = userCourses?.[0];
-  const level = analytics?.level || 1;
-  const xpToNextLevel = (level * 1000) - (analytics?.totalXP || 0);
+  const level = user?.level || 1;
+  const totalXP = user?.xp || 0;
+  const xpToNextLevel = (level * 1000) - totalXP;
+  const xpProgress = (totalXP % 1000) / 10;
+
+  const latestAnalytics = analytics?.[0];
 
   return (
     <Layout>
@@ -118,7 +124,7 @@ export default function Dashboard() {
                     {/* Overall Progress */}
                     <div className="flex flex-col items-center">
                       <ProgressRing 
-                        progress={analytics?.coursesCompleted ? (analytics.coursesCompleted / 10) * 100 : 0}
+                        progress={latestAnalytics?.coursesCompleted ? (latestAnalytics.coursesCompleted / 10) * 100 : 0}
                         size={120}
                         strokeWidth={8}
                         className="mb-3"
@@ -126,7 +132,7 @@ export default function Dashboard() {
                       <div className="text-center">
                         <div className="text-sm font-semibold">Overall Progress</div>
                         <div className="text-xs text-muted-foreground">
-                          {analytics?.coursesCompleted || 0} courses completed
+                          {latestAnalytics?.coursesCompleted || 0} courses completed
                         </div>
                       </div>
                     </div>
@@ -134,7 +140,7 @@ export default function Dashboard() {
                     {/* Quiz Accuracy */}
                     <div className="flex flex-col items-center">
                       <ProgressRing 
-                        progress={analytics?.averageScore || 0}
+                        progress={latestAnalytics?.accuracyRate || 0}
                         size={120}
                         strokeWidth={8}
                         className="mb-3"
@@ -143,7 +149,7 @@ export default function Dashboard() {
                       <div className="text-center">
                         <div className="text-sm font-semibold">Quiz Accuracy</div>
                         <div className="text-xs text-muted-foreground">
-                          {analytics?.quizzesCompleted || 0} quizzes completed
+                          {latestAnalytics?.quizzesCompleted || 0} quizzes completed
                         </div>
                       </div>
                     </div>
@@ -151,7 +157,7 @@ export default function Dashboard() {
                     {/* Time Spent */}
                     <div className="flex flex-col items-center">
                       <ProgressRing 
-                        progress={Math.min((analytics?.timeSpent || 0) / 100, 100)}
+                        progress={Math.min((latestAnalytics?.timeSpent || 0) / 100, 100)}
                         size={120}
                         strokeWidth={8}
                         className="mb-3"
@@ -160,7 +166,7 @@ export default function Dashboard() {
                       <div className="text-center">
                         <div className="text-sm font-semibold">Time This Week</div>
                         <div className="text-xs text-muted-foreground">
-                          {Math.floor((analytics?.timeSpent || 0) / 60)} hours spent
+                          {Math.floor((latestAnalytics?.timeSpent || 0) / 60)} hours spent
                         </div>
                       </div>
                     </div>
@@ -238,15 +244,11 @@ export default function Dashboard() {
                   <div className="w-full bg-border rounded-full h-3 mb-2">
                     <div 
                       className="bg-gradient-to-r from-accent to-primary h-3 rounded-full transition-all duration-500" 
-                      style={{ 
-                        width: xpToNextLevel > 0 
-                          ? `${((analytics?.totalXP || 0) % 1000) / 10}%`
-                          : '100%'
-                      }}
+                      style={{ width: `${xpProgress}%`}}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-primary">{analytics?.totalXP || 0} XP</span> total earned
+                    <span className="font-semibold text-primary">{totalXP} XP</span> total earned
                   </p>
                 </CardContent>
               </Card>
@@ -260,17 +262,17 @@ export default function Dashboard() {
                       Badges
                     </span>
                     <span className="text-sm text-muted-foreground font-normal">
-                      {analytics?.badgeCount || 0}/20
+                      {userBadges?.length || 0}/20
                     </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4">
-                    {userBadges?.slice(0, 6).map((userBadge, index) => (
+                    {userBadges?.slice(0, 6).map((badge: any, index: number) => (
                       <Badge 
-                        key={userBadge.id} 
-                        name={`Badge ${index + 1}`}
-                        iconClass="fas fa-trophy"
+                        key={badge.id} 
+                        name={badge.name}
+                        iconClass={badge.iconClass}
                         color="#4F46E5"
                         earned={true}
                       />

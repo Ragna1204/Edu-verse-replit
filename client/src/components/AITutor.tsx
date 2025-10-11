@@ -29,9 +29,10 @@ export function AITutor() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
+      const messageHistory = messages.slice(-3);
       const response = await apiRequest('POST', '/api/ai/tutor', {
         question: message,
-        context: 'general'
+        context: messageHistory,
       });
       return response.json();
     },

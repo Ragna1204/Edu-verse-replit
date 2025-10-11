@@ -6,6 +6,7 @@ import { generateTutorResponse, generateQuizQuestions, provideLearningRecommenda
 import { analyzeQuizPerformance, generatePersonalizedContent, moderateContent } from "./services/openai";
 import { insertCourseSchema, insertEnrollmentSchema, insertQuizSchema, insertQuizAttemptSchema, insertPostSchema, insertAiConversationSchema } from "@shared/schema";
 import { z } from "zod";
+import { startQuiz, submitAnswer, getNextQuestion } from "./quiz";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -192,6 +193,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+    // Adaptive Quiz Routes
+  app.post('/api/quizzes/:quizId/start', isAuthenticated, async (req: any, res) => {
+    const { quizId } = req.params;
+    const userId = req.user.claims.sub;
+
+    try {
+      const data = await startQuiz(quizId, userId);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/quizzes/sessions/:sessionId/submit', isAuthenticated, async (req: any, res) => {
+    const { sessionId } = req.params;
+    const { questionId, selectedOption } = req.body;
+
+    try {
+      const data = await submitAnswer(sessionId, questionId, selectedOption);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/quizzes/sessions/:sessionId/next', isAuthenticated, async (req: any, res) => {
+    const { sessionId } = req.params;
+
+    try {
+      const data = await getNextQuestion(sessionId);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+
   // Badge routes
   app.get('/api/badges', async (req, res) => {
     try {
@@ -353,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error getting recommendations:", error);
-      res.status(500).json({ message: "Failed to get recommendations" });
+      res.json({ message: "Failed to get recommendations" });
     }
   });
 

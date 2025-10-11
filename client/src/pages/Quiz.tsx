@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Layout from "@/components/Layout";
-import QuizInterface from "@/components/QuizInterface";
+import AdaptiveQuiz from "@/components/AdaptiveQuiz";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -143,7 +143,7 @@ export default function Quiz() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Main Quiz Interface */}
             <div className="lg:col-span-3">
-              <QuizInterface quiz={quizData} onComplete={handleQuizComplete} />
+              <AdaptiveQuiz quizId={id} onComplete={handleQuizComplete} />
             </div>
 
             {/* Sidebar Info */}

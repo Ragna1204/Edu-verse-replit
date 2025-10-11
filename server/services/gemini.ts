@@ -3,21 +3,23 @@ import { GoogleGenAI } from "@google/genai";
 // the newest Gemini model is "gemini-2.5-flash" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export async function generateTutorResponse(question: string, context?: string): Promise<string> {
+export async function generateTutorResponse(question: string, context?: any[]): Promise<string> {
   const systemPrompt = `You are EduBot, an AI learning assistant for EduVerse, an educational platform. 
   You help students understand concepts, solve problems, and provide guidance. 
-  Be encouraging, clear, and educational in your responses. 
-  ${context ? `Context: ${context}` : ''}`;
+  Be encouraging, clear, and educational in your responses.`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    config: {
-      systemInstruction: systemPrompt,
-    },
-    contents: question,
-  });
+  const chat = ai.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: systemPrompt });
 
-  return response.text || "I'm sorry, I couldn't process that question. Could you please rephrase it?";
+  const history = context?.map(message => ({
+    role: message.role === 'user' ? 'user' : 'model',
+    parts: [{ text: message.content }],
+  })) || [];
+
+  const result = await chat.sendMessage(question, { history });
+  const response = result.response;
+  const text = response.text();
+
+  return text || "I'm sorry, I couldn't process that question. Could you please rephrase it?";
 }
 
 export async function generateQuizQuestions(topic: string, difficulty: 'easy' | 'medium' | 'hard', count: number = 5): Promise<any[]> {

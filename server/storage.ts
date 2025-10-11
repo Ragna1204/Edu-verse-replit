@@ -182,8 +182,40 @@ export class DatabaseStorage implements IStorage {
     // Award XP based on score
     const xpEarned = Math.floor(attempt.score * 10); // 10 XP per percentage point
     await this.updateUserXP(attempt.userId, xpEarned);
+
+    // Update user analytics
+    await this.updateUserAnalytics(attempt.userId);
     
     return quizAttempt;
+  }
+
+  async updateUserAnalytics(userId: string): Promise<void> {
+    const userQuizAttempts = await this.getUserQuizAttempts(userId);
+    const userEnrollments = await this.getUserEnrollments(userId);
+
+    const quizzesCompleted = new Set(userQuizAttempts.map(a => a.quizId)).size;
+    const totalScore = userQuizAttempts.reduce((sum, a) => sum + a.score, 0);
+    const accuracyRate = userQuizAttempts.length > 0 ? totalScore / userQuizAttempts.length : 0;
+    const timeSpent = userQuizAttempts.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
+
+    const today = new Date().toISOString().split('T')[0];
+
+    await db.insert(userAnalytics)
+      .values({
+        userId,
+        date: new Date(today),
+        quizzesCompleted,
+        accuracyRate,
+        timeSpent: Math.floor(timeSpent / 60),
+      })
+      .onConflictDoUpdate({
+        target: [userAnalytics.userId, userAnalytics.date],
+        set: {
+          quizzesCompleted,
+          accuracyRate,
+          timeSpent: Math.floor(timeSpent / 60),
+        }
+      });
   }
 
   async getUserQuizAttempts(userId: string): Promise<QuizAttempt[]> {

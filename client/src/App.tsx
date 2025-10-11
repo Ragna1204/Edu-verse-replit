@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigation } from "@/components/Navigation";
 import { CourseCatalog } from "@/components/CourseCatalog";
-import { AdaptiveQuiz } from "@/components/AdaptiveQuiz";
+import AdaptiveQuiz from "@/components/AdaptiveQuiz";
 import { Leaderboard } from "@/components/Leaderboard";
 import { AITutor } from "@/components/AITutor";
 import { Community } from "@/components/Community";
@@ -45,13 +45,17 @@ function Router() {
         <>
           <Navigation />
           <Route path="/" component={Home} />
+import Courses from "@/pages/Courses";
+
+// ... (rest of the file)
+
           <Route path="/courses">
             {() => (
               <>
                 <div className="cosmic-bg"></div>
                 <div className="cosmic-particles"></div>
                 <div className="content-wrapper">
-                  <CourseCatalog />
+                  <Courses />
                 </div>
               </>
             )}

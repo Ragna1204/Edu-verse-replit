@@ -87,11 +87,34 @@ export const quizzes = pgTable("quizzes", {
   title: varchar("title").notNull(),
   description: text("description"),
   difficulty: quizDifficultyEnum("difficulty").notNull(),
-  questions: jsonb("questions").notNull(), // Array of question objects
   timeLimit: integer("time_limit"), // minutes
   passingScore: integer("passing_score").default(70), // percentage
   isAdaptive: boolean("is_adaptive").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Questions table
+export const questions = pgTable("questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").references(() => courses.id).notNull(),
+  content: text("content").notNull(),
+  options: jsonb("options").notNull(), // { text: string, isCorrect: boolean }[]
+  difficulty: quizDifficultyEnum("difficulty").notNull(),
+  explanation: text("explanation"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User quiz sessions table
+export const userQuizSessions = pgTable("user_quiz_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  quizId: varchar("quiz_id").references(() => quizzes.id).notNull(),
+  currentQuestionId: varchar("current_question_id").references(() => questions.id),
+  score: integer("score").default(0),
+  streak: integer("streak").default(0),
+  performanceHistory: jsonb("performance_history").default([]), // { questionId: string, isCorrect: boolean }[]
+  startedAt: timestamp("started_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Quiz attempts
@@ -214,6 +237,7 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   }),
   enrollments: many(enrollments),
   quizzes: many(quizzes),
+  questions: many(questions),
 }));
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
@@ -233,6 +257,29 @@ export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
     references: [courses.id],
   }),
   attempts: many(quizAttempts),
+  questions: many(questions),
+}));
+
+export const questionsRelations = relations(questions, ({ one }) => ({
+  course: one(courses, {
+    fields: [questions.courseId],
+    references: [courses.id],
+  }),
+}));
+
+export const userQuizSessionsRelations = relations(userQuizSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [userQuizSessions.userId],
+    references: [users.id],
+  }),
+  quiz: one(quizzes, {
+    fields: [userQuizSessions.quizId],
+    references: [quizzes.id],
+  }),
+  currentQuestion: one(questions, {
+    fields: [userQuizSessions.currentQuestionId],
+    references: [questions.id],
+  }),
 }));
 
 export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
@@ -258,6 +305,12 @@ export type Enrollment = typeof enrollments.$inferSelect;
 
 export type InsertQuiz = typeof quizzes.$inferInsert;
 export type Quiz = typeof quizzes.$inferSelect;
+
+export type InsertQuestion = typeof questions.$inferInsert;
+export type Question = typeof questions.$inferSelect;
+
+export type InsertUserQuizSession = typeof userQuizSessions.$inferInsert;
+export type UserQuizSession = typeof userQuizSessions.$inferSelect;
 
 export type InsertQuizAttempt = typeof quizAttempts.$inferInsert;
 export type QuizAttempt = typeof quizAttempts.$inferSelect;
@@ -292,6 +345,17 @@ export const insertEnrollmentSchema = createInsertSchema(enrollments).omit({
 export const insertQuizSchema = createInsertSchema(quizzes).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertQuestionSchema = createInsertSchema(questions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserQuizSessionSchema = createInsertSchema(userQuizSessions).omit({
+  id: true,
+  startedAt: true,
+  updatedAt: true,
 });
 
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts).omit({
