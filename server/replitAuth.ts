@@ -155,3 +155,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return;
   }
 };
+
+export const isEducator: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+  const dbUser = await storage.getUser(user.claims.sub);
+
+  if (dbUser?.isEducator) {
+    return next();
+  }
+
+  return res.status(403).json({ message: "Forbidden" });
+};

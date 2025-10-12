@@ -143,7 +143,7 @@ export default function Quiz() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Main Quiz Interface */}
             <div className="lg:col-span-3">
-              <AdaptiveQuiz quizId={id} onComplete={handleQuizComplete} />
+              <AdaptiveQuiz quizId={id} />
             </div>
 
             {/* Sidebar Info */}

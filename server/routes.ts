@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isEducator } from "./replitAuth";
 import { generateTutorResponse, generateQuizQuestions, provideLearningRecommendations, adaptQuizDifficulty } from "./services/gemini";
 import { analyzeQuizPerformance, generatePersonalizedContent, moderateContent } from "./services/openai";
 import { insertCourseSchema, insertEnrollmentSchema, insertQuizSchema, insertQuizAttemptSchema, insertPostSchema, insertAiConversationSchema } from "@shared/schema";
@@ -72,15 +72,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses', isAuthenticated, async (req: any, res) => {
+  app.post('/api/courses', isAuthenticated, isEducator, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isEducator) {
-        return res.status(403).json({ message: "Only educators can create courses" });
-      }
-
       const courseData = insertCourseSchema.parse({
         ...req.body,
         educatorId: userId
@@ -94,6 +88,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating course:", error);
       res.status(500).json({ message: "Failed to create course" });
+    }
+  });
+
+  app.put('/api/courses/:id', isAuthenticated, isEducator, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const courseData = insertCourseSchema.parse(req.body);
+      const updatedCourse = await storage.updateCourse(id, courseData);
+      res.json(updatedCourse);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error updating course:", error);
+      res.status(500).json({ message: "Failed to update course" });
+    }
+  });
+
+  app.delete('/api/courses/:id', isAuthenticated, isEducator, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteCourse(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      res.status(500).json({ message: "Failed to delete course" });
     }
   });
 

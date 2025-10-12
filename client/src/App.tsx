@@ -1,8 +1,21 @@
+import { Switch, Route } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import Home from "@/pages/Home";
+import Landing from "@/pages/Landing";
+import Courses from "@/pages/Courses";
+import AdaptiveQuiz from "@/components/AdaptiveQuiz";
+import { Leaderboard } from "@/components/Leaderboard";
+import AITutor from "@/pages/AITutor";
+import Community from "@/pages/Community";
+import EducatorDashboard from "@/pages/EducatorDashboard";
+import EducatorCourses from "@/pages/educator/Courses";
 import CourseForm from "@/pages/educator/CourseForm";
 import EducatorQuizzes from "@/pages/educator/Quizzes";
 import QuizForm from "@/pages/educator/QuizForm";
+import NotFound from "@/pages/not-found";
+import { Navigation } from "@/components/Navigation";
 
-function Router() {
+export default function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -50,7 +63,7 @@ function Router() {
                 <div className="cosmic-bg"></div>
                 <div className="cosmic-particles"></div>
                 <div className="content-wrapper">
-                  <AdaptiveQuiz quizId={params.quizId} topic="General Knowledge" />
+                  <AdaptiveQuiz quizId={params.quizId || ""} />
                 </div>
               </>
             )}

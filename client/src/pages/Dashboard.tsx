@@ -11,23 +11,12 @@ import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { 
-  BookOpen, 
-  Clock, 
-  Trophy, 
-  TrendingUp, 
-  Play,
-  CheckCircle,
-  Flame,
-  Lightbulb,
-  Bot
-} from "lucide-react";
+import { BookOpen, Clock, Trophy, TrendingUp, Play, CheckCircle, Flame, Lightbulb, Bot } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading } = useAuth();
-
-const { user } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useQuery({
     queryKey: ["/api/user/analytics"],
@@ -43,6 +32,12 @@ const { user } = useAuth();
 
   const { data: userBadges, isLoading: badgesLoading, error: badgesError } = useQuery({
     queryKey: ["/api/user/badges"],
+    enabled: isAuthenticated && !isLoading,
+    retry: false,
+  });
+
+  const { data: recentActivity, isLoading: activityLoading } = useQuery({
+    queryKey: ["/api/user/recent-activity"],
     enabled: isAuthenticated && !isLoading,
     retry: false,
   });
@@ -118,6 +113,7 @@ const { user } = useAuth();
 
               {/* Current Course Progress */}
               {currentCourse && (
+                <>
                 <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
@@ -147,22 +143,9 @@ const { user } = useAuth();
                     </Button>
                   </CardContent>
                 </Card>
+                </>
               )}
 
-              import ActivityItem from "@/components/ActivityItem";
-import { Skeleton } from "@/components/ui/skeleton";
-
-// ... inside the Dashboard component, after the userBadges query
-
-  const { data: recentActivity, isLoading: activityLoading } = useQuery({
-    queryKey: ["/api/user/recent-activity"],
-    enabled: isAuthenticated && !isLoading,
-    retry: false,
-  });
-
-// ... inside the return statement, replace the Recent Activity Card
-
-              {/* Recent Activity */}
               <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
                 <CardHeader>
                   <CardTitle className="flex items-center">

@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 
 interface AdaptiveQuizProps {
   quizId: string;
-  onComplete: (result: any) => void;
 }
 
 interface QuizState {
@@ -20,7 +19,7 @@ interface QuizState {
   score: number;
 }
 
-export default function AdaptiveQuiz({ quizId, onComplete }: AdaptiveQuizProps) {
+export default function AdaptiveQuiz({ quizId }: AdaptiveQuizProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -32,7 +31,7 @@ export default function AdaptiveQuiz({ quizId, onComplete }: AdaptiveQuizProps) 
   });
   const [selectedOption, setSelectedOption] = useState<any | null>(null);
 
-  const { mutate: startQuiz, isLoading: isStarting } = useMutation({
+  const { mutate: startQuiz, isPending: isStarting } = useMutation({
     mutationFn: () => apiRequest('POST', `/api/quizzes/${quizId}/start`),
     onSuccess: (data: any) => {
       setQuizState({
@@ -51,7 +50,7 @@ export default function AdaptiveQuiz({ quizId, onComplete }: AdaptiveQuizProps) 
     },
   });
 
-  const { mutate: submitAnswer, isLoading: isSubmitting } = useMutation({
+  const { mutate: submitAnswer, isPending: isSubmitting } = useMutation({
     mutationFn: (answer: any) =>
       apiRequest('POST', `/api/quizzes/sessions/${quizState.session?.id}/submit`, answer),
     onSuccess: (data: any) => {
@@ -76,18 +75,18 @@ export default function AdaptiveQuiz({ quizId, onComplete }: AdaptiveQuizProps) 
 
   const { data: nextQuestion, isLoading: isLoadingNext } = useQuery({
     queryKey: ['nextQuestion', quizState.session?.id],
-    queryFn: () => apiRequest('GET', `/api/quizzes/sessions/${quizState.session?.id}/next`),
+    queryFn: () => apiRequest<Question | null>('GET', `/api/quizzes/sessions/${quizState.session?.id}/next`),
     enabled: !!quizState.session && !quizState.isCompleted,
-    onSuccess: (data: any) => {
-      if (data) {
-        setQuizState(prev => ({ ...prev, currentQuestion: data }));
-        setSelectedOption(null);
-      } else {
-        setQuizState(prev => ({ ...prev, isCompleted: true }));
-        onComplete({ score: quizState.score });
-      }
-    },
   });
+
+  useEffect(() => {
+    if (nextQuestion) {
+      setQuizState(prev => ({ ...prev, currentQuestion: nextQuestion }));
+      setSelectedOption(null);
+    } else if (quizState.session && !isLoadingNext) {
+      setQuizState(prev => ({ ...prev, isCompleted: true }));
+    }
+  }, [nextQuestion, isLoadingNext, quizState.session]);
 
   useEffect(() => {
     if (quizId) {
