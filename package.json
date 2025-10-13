@@ -5,7 +5,9 @@
   "license": "MIT",
   "scripts": {
     "db:seed": "tsx server/seed.ts",
-    "dev": "cross-env NODE_ENV=development vite",
+    "dev": "node ./scripts/dev-runner.cjs",
+    "server:dev": "tsx watch server/index.ts",
+    "client:dev": "vite",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "client:start": "vite preview",
     "server:start": "cross-env NODE_ENV=production node dist/index.js",
@@ -15,6 +17,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.23.0",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -53,6 +56,7 @@
     "concurrently": "^9.2.1",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.3",
     "drizzle-orm": "^0.39.1",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",

@@ -1,25 +1,31 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// the newest Gemini model is "gemini-2.5-flash" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function generateTutorResponse(question: string, context?: any[]): Promise<string> {
-  const systemPrompt = `You are EduBot, an AI learning assistant for EduVerse, an educational platform. 
-  You help students understand concepts, solve problems, and provide guidance. 
-  Be encouraging, clear, and educational in your responses.`;
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: `You are EduBot, an AI learning assistant for EduVerse, an educational platform. 
+      You help students understand concepts, solve problems, and provide guidance. 
+      Be encouraging, clear, and educational in your responses.`
+    });
 
-  const chat = ai.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: systemPrompt });
+    const history = context?.map(message => ({
+      role: message.role === 'user' ? 'user' : 'model',
+      parts: [{ text: message.content }],
+    })) || [];
 
-  const history = context?.map(message => ({
-    role: message.role === 'user' ? 'user' : 'model',
-    parts: [{ text: message.content }],
-  })) || [];
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(question);
+    const response = result.response;
+    const text = response.text();
 
-  const result = await chat.sendMessage(question, { history });
-  const response = result.response;
-  const text = response.text();
-
-  return text || "I'm sorry, I couldn't process that question. Could you please rephrase it?";
+    return text || "I'm sorry, I couldn't process that question. Could you please rephrase it?";
+  } catch (error) {
+    console.error("Error generating tutor response:", error);
+    return "I'm sorry, I encountered an error processing your question. Please try again.";
+  }
 }
 
 export async function generateQuizQuestions(topic: string, difficulty: 'easy' | 'medium' | 'hard', count: number = 5): Promise<any[]> {
@@ -31,36 +37,21 @@ export async function generateQuizQuestions(topic: string, difficulty: 'easy' | 
   - correctAnswer: index (0-3) of the correct option
   - explanation: brief explanation of the correct answer
   
-  Make questions engaging and educational.`;
+  Make questions engaging and educational. Format as valid JSON.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              question: { type: "string" },
-              options: { 
-                type: "array",
-                items: { type: "string" },
-                minItems: 4,
-                maxItems: 4
-              },
-              correctAnswer: { type: "number", minimum: 0, maximum: 3 },
-              explanation: { type: "string" }
-            },
-            required: ["question", "options", "correctAnswer", "explanation"]
-          }
-        }
-      },
-      contents: prompt,
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
     });
 
-    const questions = JSON.parse(response.text || "[]");
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    const questions = JSON.parse(text || "[]");
     return questions;
   } catch (error) {
     console.error("Error generating quiz questions:", error);
@@ -74,22 +65,21 @@ export async function provideLearningRecommendations(userProgress: any, weakArea
   User Progress: ${JSON.stringify(userProgress)}
   Weak Areas: ${weakAreas.join(', ')}
   
-  Return recommendations as a JSON array of strings. Each recommendation should be actionable and specific.`;
+  Return recommendations as a JSON array of strings. Each recommendation should be actionable and specific. Format as valid JSON array.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "array",
-          items: { type: "string" }
-        }
-      },
-      contents: prompt,
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
     });
 
-    return JSON.parse(response.text || "[]");
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    return JSON.parse(text || "[]");
   } catch (error) {
     console.error("Error generating recommendations:", error);
     return ["Review fundamentals", "Practice more exercises", "Watch tutorial videos"];

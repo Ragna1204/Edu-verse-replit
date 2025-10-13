@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isEducator } from "./replitAuth";
+import { setupAuth, isAuthenticated, isEducator, isDevNoAuth } from "./replitAuth";
 import { generateTutorResponse, generateQuizQuestions, provideLearningRecommendations, adaptQuizDifficulty } from "./services/gemini";
 import { analyzeQuizPerformance, generatePersonalizedContent, moderateContent } from "./services/openai";
 import { insertCourseSchema, insertEnrollmentSchema, insertQuizSchema, insertQuizAttemptSchema, insertPostSchema, insertAiConversationSchema } from "@shared/schema";
@@ -13,7 +13,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
+    console.log("Executing /api/auth/user route handler");
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -72,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses', isAuthenticated, isEducator, async (req: any, res) => {
+  app.post('/api/courses', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, isEducator, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const courseData = insertCourseSchema.parse({
@@ -91,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/courses/:id', isAuthenticated, isEducator, async (req: any, res) => {
+  app.put('/api/courses/:id', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, isEducator, async (req: any, res) => {
     try {
       const { id } = req.params;
       const courseData = insertCourseSchema.parse(req.body);
@@ -106,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/courses/:id', isAuthenticated, isEducator, async (req: any, res) => {
+  app.delete('/api/courses/:id', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, isEducator, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteCourse(id);
@@ -117,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses/:id/enroll', isAuthenticated, async (req: any, res) => {
+  app.post('/api/courses/:id/enroll', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id: courseId } = req.params;
@@ -131,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User enrollment routes
-  app.get('/api/user/enrollments', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/enrollments', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const enrollments = await storage.getUserEnrollments(userId);
@@ -142,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/user/enrollments/:courseId/progress', isAuthenticated, async (req: any, res) => {
+  app.put('/api/user/enrollments/:courseId/progress', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { courseId } = req.params;
@@ -171,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/courses/:courseId/quizzes', isAuthenticated, async (req: any, res) => {
+  app.post('/api/courses/:courseId/quizzes', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { courseId } = req.params;
@@ -197,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/quizzes/:quizId/attempt', isAuthenticated, async (req: any, res) => {
+  app.post('/api/quizzes/:quizId/attempt', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { quizId } = req.params;
@@ -224,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/quiz-attempts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/quiz-attempts', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const attempts = await storage.getUserQuizAttempts(userId);
@@ -236,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI-powered quiz generation
-  app.post('/api/ai/generate-quiz', isAuthenticated, async (req: any, res) => {
+  app.post('/api/ai/generate-quiz', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const { topic, difficulty, count } = generateQuizQuestionsSchema.parse(req.body);
       const questions = await generateQuizQuestions(topic, difficulty, count);
@@ -251,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
     // Adaptive Quiz Routes
-  app.post('/api/quizzes/:quizId/start', isAuthenticated, async (req: any, res) => {
+  app.post('/api/quizzes/:quizId/start', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     const { quizId } = req.params;
     const userId = req.user.claims.sub;
 
@@ -263,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/quizzes/sessions/:sessionId/submit', isAuthenticated, async (req: any, res) => {
+  app.post('/api/quizzes/sessions/:sessionId/submit', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     const { sessionId } = req.params;
     try {
       const { questionId, selectedOption } = submitAnswerSchema.parse(req.body);
@@ -278,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/quizzes/sessions/:sessionId/next', isAuthenticated, async (req: any, res) => {
+  app.get('/api/quizzes/sessions/:sessionId/next', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     const { sessionId } = req.params;
 
     try {
@@ -301,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/badges', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/badges', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const badges = await storage.getUserBadges(userId);
@@ -342,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/community/posts', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -371,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/community/posts/:postId/like', isAuthenticated, async (req: any, res) => {
+  app.post('/api/community/posts/:postId/like', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { postId } = req.params;
@@ -385,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Tutor routes
-  app.post('/api/ai/tutor', isAuthenticated, async (req: any, res) => {
+  app.post('/api/ai/tutor', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const { question, context } = aiTutorRequestSchema.parse(req.body);
       const response = await generateTutorResponse(question, context);
@@ -399,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/conversations', isAuthenticated, async (req: any, res) => {
+  app.post('/api/ai/conversations', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const conversationData = insertAiConversationSchema.parse({
@@ -418,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/conversations', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/conversations', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const conversations = await storage.getUserConversations(userId);
@@ -430,7 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes
-  app.get('/api/user/analytics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/analytics', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { days = 30 } = req.query;
@@ -442,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/recent-activity', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/recent-activity', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const activities = await storage.getRecentActivity(userId);
@@ -453,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/analytics/summary', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/analytics/summary', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { days = 30 } = req.query; // Default to 30 days
@@ -465,7 +466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/analytics/accuracy-by-topic', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/analytics/accuracy-by-topic', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const accuracyByTopic = await storage.getAccuracyRatePerTopic(userId);
@@ -476,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/educator/courses', isAuthenticated, async (req: any, res) => {
+  app.get('/api/educator/courses', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -493,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/educator/quizzes', isAuthenticated, async (req: any, res) => {
+  app.get('/api/educator/quizzes', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -510,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/quizzes/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/quizzes/:id', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -538,7 +539,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/quizzes/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/quizzes/:id', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -572,7 +573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI-powered recommendations
-  app.get('/api/ai/recommendations', isAuthenticated, async (req: any, res) => {
+  app.get('/api/ai/recommendations', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const attempts = await storage.getUserQuizAttempts(userId);
@@ -594,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user XP and streaks
-  app.post('/api/user/xp', isAuthenticated, async (req: any, res) => {
+  app.post('/api/user/xp', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { xp } = updateXPSchema.parse(req.body);
@@ -610,7 +611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/user/streak', isAuthenticated, async (req: any, res) => {
+  app.post('/api/user/streak', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { streak } = updateStreakSchema.parse(req.body);

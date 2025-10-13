@@ -1,5 +1,6 @@
+import 'dotenv/config';
 import { db } from "./db";
-import { badges, courses, quizzes } from "../shared/schema"; // Import courses and quizzes
+import { badges, courses, quizzes, users } from "../shared/schema"; // Import courses, quizzes and users
 
 async function seed() {
   const existingBadges = await db.select().from(badges);
@@ -41,6 +42,30 @@ async function seed() {
   // Seed Courses
   const existingCourses = await db.select().from(courses);
   if (existingCourses.length === 0) {
+    // Ensure some users exist for educator references used below
+    const existingUsers = await db.select().from(users);
+    if (existingUsers.length === 0) {
+      console.log("Seeding default users...");
+      await db.insert(users).values([
+        {
+          id: "replit-user-id-1",
+          email: "educator1@example.com",
+          firstName: "Educator",
+          lastName: "One",
+          role: "educator",
+          isEducator: true,
+        },
+        {
+          id: "replit-user-id-2",
+          email: "educator2@example.com",
+          firstName: "Educator",
+          lastName: "Two",
+          role: "educator",
+          isEducator: true,
+        },
+      ]);
+      console.log("Default users seeded.");
+    }
     console.log("Seeding courses...");
     const [course1] = await db.insert(courses).values([
       {

@@ -8,8 +8,10 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
+export const isDevNoAuth = !process.env.REPLIT_DOMAINS && process.env.NODE_ENV !== "production";
+
+if (isDevNoAuth) {
+  console.warn("REPLIT_DOMAINS not provided — running in development NO-AUTH mode. Auth routes will be mocked.");
 }
 
 const getOidcConfig = memoize(
@@ -67,6 +69,25 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
+  // If running in dev without REPLIT_DOMAINS, provide a lightweight mock
+  if (isDevNoAuth) {
+    app.set("trust proxy", 1);
+    // minimal session-like middleware placeholder
+    app.use((req: any, _res, next) => {
+      // Attach a seeded dev user by default
+      req.user = {
+        claims: { sub: "replit-user-id-1", email: "dev@local" },
+        access_token: "dev",
+        refresh_token: null,
+        expires_at: Number.MAX_SAFE_INTEGER,
+      };
+      req.isAuthenticated = () => true;
+      next();
+    });
+    console.warn("setupAuth: development no-auth mode enabled — requests will be treated as authenticated.");
+    return;
+  }
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -128,7 +149,12 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  if (isDevNoAuth) return next();
+
   const user = req.user as any;
+
+  console.log("isAuthenticated - req.isAuthenticated():", req.isAuthenticated());
+  console.log("isAuthenticated - req.user:", req.user);
 
   if (!req.isAuthenticated() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -157,6 +183,8 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 };
 
 export const isEducator: RequestHandler = async (req, res, next) => {
+  if (isDevNoAuth) return next();
+
   const user = req.user as any;
   const dbUser = await storage.getUser(user.claims.sub);
 

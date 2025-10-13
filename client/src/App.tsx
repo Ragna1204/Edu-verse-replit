@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/Home";
@@ -16,7 +17,11 @@ import NotFound from "@/pages/not-found";
 import { Navigation } from "@/components/Navigation";
 
 export default function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  
+  console.log('App.tsx - isLoading:', isLoading);
+  console.log('App.tsx - isAuthenticated:', isAuthenticated);
+  console.log('App.tsx - user:', user);
 
   if (isLoading) {
     return (
@@ -39,148 +44,102 @@ export default function Router() {
   }
 
   return (
-    <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Navigation />
-          <Route path="/" component={Home} />
-          <Route path="/courses">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <Courses />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/quiz/:quizId?">
-            {(params) => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
+    <>
+      <Navigation />
+      <div className="cosmic-bg"></div>
+      <div className="cosmic-particles"></div>
+      
+      <Switch>
+        {!isAuthenticated ? (
+          <>
+            <Route path="/">
+              <div className="content-wrapper">
+                <Landing />
+              </div>
+            </Route>
+            <Route>
+              <div className="content-wrapper">
+                <Landing />
+              </div>
+            </Route>
+          </>
+        ) : (
+          <>
+            <Route path="/">
+              <div className="content-wrapper">
+                <Home />
+              </div>
+            </Route>
+            <Route path="/courses">
+              <div className="content-wrapper">
+                <Courses />
+              </div>
+            </Route>
+            <Route path="/quiz/:quizId?">
+              {(params) => (
                 <div className="content-wrapper">
                   <AdaptiveQuiz quizId={params.quizId || ""} />
                 </div>
-              </>
-            )}
-          </Route>
-          <Route path="/leaderboard">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <Leaderboard />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/ai-tutor">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <AITutor />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/community">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <Community />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <EducatorDashboard />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator/courses">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <EducatorCourses />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator/courses/new">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <CourseForm />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator/courses/edit/:id">
-            {(params) => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
+              )}
+            </Route>
+            <Route path="/leaderboard">
+              <div className="content-wrapper">
+                <Leaderboard />
+              </div>
+            </Route>
+            <Route path="/ai-tutor">
+              <div className="content-wrapper">
+                <AITutor />
+              </div>
+            </Route>
+            <Route path="/community">
+              <div className="content-wrapper">
+                <Community />
+              </div>
+            </Route>
+            <Route path="/educator">
+              <div className="content-wrapper">
+                <EducatorDashboard />
+              </div>
+            </Route>
+            <Route path="/educator/courses">
+              <div className="content-wrapper">
+                <EducatorCourses />
+              </div>
+            </Route>
+            <Route path="/educator/courses/new">
+              <div className="content-wrapper">
+                <CourseForm />
+              </div>
+            </Route>
+            <Route path="/educator/courses/edit/:id">
+              {(params) => (
                 <div className="content-wrapper">
                   <CourseForm id={params.id} />
                 </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator/quizzes">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <EducatorQuizzes />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator/quizzes/new">
-            {() => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
-                <div className="content-wrapper">
-                  <QuizForm />
-                </div>
-              </>
-            )}
-          </Route>
-          <Route path="/educator/quizzes/edit/:id">
-            {(params) => (
-              <>
-                <div className="cosmic-bg"></div>
-                <div className="cosmic-particles"></div>
+              )}
+            </Route>
+            <Route path="/educator/quizzes">
+              <div className="content-wrapper">
+                <EducatorQuizzes />
+              </div>
+            </Route>
+            <Route path="/educator/quizzes/new">
+              <div className="content-wrapper">
+                <QuizForm />
+              </div>
+            </Route>
+            <Route path="/educator/quizzes/edit/:id">
+              {(params) => (
                 <div className="content-wrapper">
                   <QuizForm id={params.id} />
                 </div>
-              </>
-            )}
-          </Route>
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
+              )}
+            </Route>
+            <Route component={NotFound} />
+          </>
+        )}
+      </Switch>
+    </>
   );
 }

@@ -107,16 +107,22 @@ export class DatabaseStorage implements IStorage {
 
   // Course operations
   async getCourses(category?: string): Promise<Course[]> {
-    const query = db.select().from(courses).where(eq(courses.isPublished, true));
-    
     if (category && category !== 'all') {
-      return await query.where(and(
-        eq(courses.isPublished, true),
-        eq(courses.category, category)
-      )).orderBy(desc(courses.createdAt));
+      return await db
+        .select()
+        .from(courses)
+        .where(and(
+          eq(courses.isPublished, true),
+          eq(courses.category, category)
+        ))
+        .orderBy(desc(courses.createdAt));
     }
     
-    return await query.orderBy(desc(courses.createdAt));
+    return await db
+      .select()
+      .from(courses)
+      .where(eq(courses.isPublished, true))
+      .orderBy(desc(courses.createdAt));
   }
 
   async getCourse(id: string): Promise<Course | undefined> {
@@ -195,7 +201,7 @@ export class DatabaseStorage implements IStorage {
   async updateQuiz(id: string, updates: Partial<InsertQuiz>): Promise<Quiz> {
     const [updatedQuiz] = await db
       .update(quizzes)
-      .set({ ...updates, updatedAt: new Date() }) // Assuming quizzes table has updatedAt
+      .set(updates)
       .where(eq(quizzes.id, id))
       .returning();
     return updatedQuiz;
@@ -248,7 +254,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEducatorQuizzes(educatorId: string): Promise<Quiz[]> {
-    return await db.select().from(quizzes).where(eq(quizzes.educatorId, educatorId)).orderBy(desc(quizzes.createdAt));
+    // Get quizzes through courses owned by the educator
+    const educatorCourses = await db
+      .select({ id: courses.id })
+      .from(courses)
+      .where(eq(courses.educatorId, educatorId));
+    
+    const courseIds = educatorCourses.map(c => c.id);
+    
+    if (courseIds.length === 0) {
+      return [];
+    }
+    
+    return await db
+      .select()
+      .from(quizzes)
+      .where(inArray(quizzes.courseId, courseIds))
+      .orderBy(desc(quizzes.createdAt));
   }
 
   // Badge operations
@@ -436,7 +458,11 @@ export class DatabaseStorage implements IStorage {
       ...badgeActivity,
     ];
 
-    allActivities.sort((a, b) => b.date.getTime() - a.date.getTime());
+    allActivities.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateB - dateA;
+    });
 
     return allActivities.slice(0, 5);
   }
@@ -458,7 +484,7 @@ export class DatabaseStorage implements IStorage {
     const summary = analyticsData.map(data => {
       accumulatedXp += data.xpEarned || 0;
       return {
-        date: data.date.toISOString().split('T')[0],
+        date: data.date ? data.date.toISOString().split('T')[0] : '',
         xpEarned: data.xpEarned || 0,
         accumulatedXp: accumulatedXp,
         quizzesCompleted: data.quizzesCompleted || 0,

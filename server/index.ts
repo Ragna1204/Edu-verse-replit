@@ -1,6 +1,9 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+console.log("Server index.ts started!");
 
 const app = express();
 
@@ -71,11 +74,33 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  const host = "0.0.0.0";
+
+  // Some platforms (for example Windows or certain hosted runtimes) don't support
+  // the `reusePort` option. Try with reusePort when appropriate and gracefully
+  // fall back to a plain listen if it's not supported.
+  const listenWithFallback = async () => {
+    const useReusePort = process.platform !== 'win32';
+    const opts: any = useReusePort
+      ? { port, host, reusePort: true }
+      : { port, host };
+
+    try {
+      server.listen(opts, () => {
+        log(`serving on port ${port}`);
+      });
+    } catch (err: any) {
+      // If reusePort is not supported, try without it
+      if (err && (err.code === 'ENOTSUP' || err.code === 'EISCONN' || err.code === 'ERR_SERVER_NOT_RUNNING')) {
+        log('listen with reusePort failed, retrying without reusePort');
+        server.listen(port, host, () => {
+          log(`serving on port ${port}`);
+        });
+      } else {
+        throw err;
+      }
+    }
+  };
+
+  listenWithFallback();
 })();
