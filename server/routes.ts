@@ -12,6 +12,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Firebase auth routes
+  app.post('/api/auth/firebase-user', async (req, res) => {
+    try {
+      const { uid, email, displayName, photoURL } = req.body;
+
+      if (!uid || !email) {
+        return res.status(400).json({ message: 'Firebase UID and email are required' });
+      }
+
+      // Split displayName if it exists
+      const firstName = displayName ? displayName.split(' ')[0] : null;
+      const lastName = displayName && displayName.split(' ').length > 1 ? displayName.split(' ').slice(1).join(' ') : null;
+
+      const user = await storage.upsertUser({
+        id: uid,
+        email,
+        firstName,
+        lastName,
+        profileImageUrl: photoURL,
+      });
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error creating/updating Firebase user:', error);
+      res.status(500).json({ message: 'Failed to create/update user' });
+    }
+  });
+
+  // Update user onboarding data
+  app.put('/api/auth/onboard/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { username, grade, board, subjects, isOnboarded } = req.body;
+
+      await storage.updateUserOnboarding(userId, {
+        username,
+        grade,
+        board,
+        subjects,
+        isOnboarded,
+      });
+
+      res.json({ message: 'User onboarding completed successfully' });
+    } catch (error) {
+      console.error('Error updating user onboarding:', error);
+      res.status(500).json({ message: 'Failed to update user onboarding' });
+    }
+  });
+
+  // Get Firebase user data
+  app.get('/api/auth/firebase-user/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error fetching Firebase user:', error);
+      res.status(500).json({ message: 'Failed to fetch user data' });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', isDevNoAuth ? (req, res, next) => next() : isAuthenticated, async (req: any, res) => {
     console.log("Executing /api/auth/user route handler");
@@ -527,8 +593,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Ensure the educator owns the quiz
-      if (quiz.educatorId !== userId) {
+      // Ensure the educator owns the quiz by checking courses they own
+      const userCourses = await storage.getEducatorCourses(userId);
+      const quizCourse = userCourses.find(course => course.id === quiz.courseId);
+
+      if (!quizCourse) {
         return res.status(403).json({ message: "You do not own this quiz" });
       }
 

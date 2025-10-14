@@ -27,8 +27,8 @@ export default function Landing() {
                   Join thousands of learners on their educational journey. Get personalized AI tutoring, compete on leaderboards, and earn badges as you master new skills.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                  <a 
-                    href="/api/login" 
+                  <a
+                    href="/auth"
                     className="px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-lg transition-all hover-glow"
                     data-testid="button-get-started"
                   >

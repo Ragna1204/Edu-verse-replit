@@ -35,6 +35,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserOnboarding(userId: string, data: { username: string; grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void>;
   
   // Course operations
   getCourses(category?: string): Promise<Course[]>;
@@ -103,6 +104,20 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateUserOnboarding(userId: string, data: { username: string; grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        username: data.username,
+        grade: data.grade,
+        board: data.board,
+        subjects: data.subjects,
+        isOnboarded: data.isOnboarded,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   // Course operations

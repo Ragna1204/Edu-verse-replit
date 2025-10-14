@@ -14,11 +14,14 @@ import CourseForm from "@/pages/educator/CourseForm";
 import EducatorQuizzes from "@/pages/educator/Quizzes";
 import QuizForm from "@/pages/educator/QuizForm";
 import NotFound from "@/pages/not-found";
-import { Navigation } from "@/components/Navigation";
+import Dashboard from "@/pages/Dashboard";
+import Layout from "@/components/Layout";
+import { Auth } from "@/pages/Auth";
+import { Onboarding } from "@/pages/Onboarding";
 
 export default function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
-  
+
   console.log('App.tsx - isLoading:', isLoading);
   console.log('App.tsx - isAuthenticated:', isAuthenticated);
   console.log('App.tsx - user:', user);
@@ -44,25 +47,38 @@ export default function Router() {
   }
 
   return (
-    <>
-      <Navigation />
-      <div className="cosmic-bg"></div>
-      <div className="cosmic-particles"></div>
-      
+    <Layout>
       <Switch>
         {!isAuthenticated ? (
           <>
             <Route path="/">
-              <div className="content-wrapper">
-                <Landing />
-              </div>
+              <Landing />
             </Route>
-            <Route>
-              <div className="content-wrapper">
-                <Landing />
-              </div>
+            <Route path="/auth">
+              <Auth onAuthSuccess={() => window.location.href = '/'} />
+            </Route>
+            <Route path="/onboarding">
+              <Onboarding
+                onComplete={() => window.location.href = '/'}
+                initialData={user ? {
+                  email: user.email,
+                  firstName: user.firstName,
+                  lastName: user.lastName
+                } : undefined}
+              />
             </Route>
           </>
+        ) : user && (!user.isOnboarded || !user.username) ? (
+          <Route path="/">
+            <Onboarding
+              onComplete={() => window.location.reload()}
+              initialData={{
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName
+              }}
+            />
+          </Route>
         ) : (
           <>
             <Route path="/">
@@ -140,6 +156,6 @@ export default function Router() {
           </>
         )}
       </Switch>
-    </>
+    </Layout>
   );
 }

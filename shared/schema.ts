@@ -32,6 +32,11 @@ export const users = pgTable("users", {
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  username: varchar("username").unique(),
+  grade: integer("grade"), // 1-12 for students
+  board: varchar("board"), // CBSE, ICSE, State, etc.
+  subjects: jsonb("subjects"), // array of subjects ["Mathematics", "Physics", etc.]
+  isOnboarded: boolean("is_onboarded").default(false),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").default("student"), // student, educator, admin
   xp: integer("xp").default(0),
@@ -41,6 +46,30 @@ export const users = pgTable("users", {
   isEducator: boolean("is_educator").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Badge types enum
+export const badgeTypeEnum = pgEnum('badge_type', ['achievement', 'milestone', 'streak', 'skill']);
+
+// Badges table
+export const badges = pgTable("badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  iconClass: varchar("icon_class").notNull(), // FontAwesome class
+  type: badgeTypeEnum("type").notNull(),
+  criteria: jsonb("criteria").notNull(), // Requirements to earn badge
+  xpReward: integer("xp_reward").default(0),
+  rarity: varchar("rarity").default("common"), // common, rare, epic, legendary
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User badges (earned badges)
+export const userBadges = pgTable("user_badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  badgeId: varchar("badge_id").references(() => badges.id).notNull(),
+  earnedAt: timestamp("earned_at").defaultNow(),
 });
 
 // Course difficulty enum
@@ -128,30 +157,6 @@ export const quizAttempts = pgTable("quiz_attempts", {
   difficulty: quizDifficultyEnum("difficulty").notNull(),
   isPassed: boolean("is_passed").notNull(),
   completedAt: timestamp("completed_at").defaultNow(),
-});
-
-// Badge types enum
-export const badgeTypeEnum = pgEnum('badge_type', ['achievement', 'milestone', 'streak', 'skill']);
-
-// Badges table
-export const badges = pgTable("badges", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
-  description: text("description"),
-  iconClass: varchar("icon_class").notNull(), // FontAwesome class
-  type: badgeTypeEnum("type").notNull(),
-  criteria: jsonb("criteria").notNull(), // Requirements to earn badge
-  xpReward: integer("xp_reward").default(0),
-  rarity: varchar("rarity").default("common"), // common, rare, epic, legendary
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// User badges (earned badges)
-export const userBadges = pgTable("user_badges", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  badgeId: varchar("badge_id").references(() => badges.id).notNull(),
-  earnedAt: timestamp("earned_at").defaultNow(),
 });
 
 // Community posts
@@ -325,7 +330,7 @@ export type InsertPost = typeof posts.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
-export type AiConversation = typeof aiConversations.$inferSelect;
+export type AiConversation = typeof aiConversations.$inferInsert;
 
 export type InsertUserAnalytics = typeof userAnalytics.$inferInsert;
 export type UserAnalytics = typeof userAnalytics.$inferSelect;
