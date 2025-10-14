@@ -62,10 +62,34 @@ export function Onboarding({ onComplete, initialData }: OnboardingProps) {
     setError(null);
 
     try {
-      // Here you would typically send the onboarding data to your backend
-      console.log('Onboarding data:', data);
+      // Get userId from localStorage (stored during signup)
+      const userId = localStorage.getItem('userId');
 
-      // For now, just complete the onboarding
+      if (!userId) {
+        throw new Error('User session not found. Please sign in again.');
+      }
+
+      // Send onboarding data to backend
+      const response = await fetch(`/api/auth/onboard/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: data.username,
+          grade: data.grade,
+          board: data.board,
+          subjects: data.subjects,
+          isOnboarded: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to complete onboarding');
+      }
+
+      console.log('Onboarding completed successfully');
       onComplete();
     } catch (error: any) {
       setError(error.message);

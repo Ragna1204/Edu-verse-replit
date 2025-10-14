@@ -1,14 +1,18 @@
+// Username-based authentication schemas (replacing Firebase)
 import { z } from 'zod';
 
-// Sign In Schema
+// Sign In Schema (username + password)
 export const signInSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  username: z.string().min(1, 'Username is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-// Sign Up Schema
+// Sign Up Schema (username + password + personal info)
 export const signUpSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  username: z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username must be less than 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),

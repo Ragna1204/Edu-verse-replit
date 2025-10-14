@@ -55,11 +55,11 @@ export default function Router() {
               <Landing />
             </Route>
             <Route path="/auth">
-              <Auth onAuthSuccess={() => window.location.href = '/'} />
+              <Auth onAuthSuccess={() => window.location.reload()} />
             </Route>
             <Route path="/onboarding">
               <Onboarding
-                onComplete={() => window.location.href = '/'}
+                onComplete={() => window.location.reload()}
                 initialData={user ? {
                   email: user.email,
                   firstName: user.firstName,
@@ -83,7 +83,7 @@ export default function Router() {
           <>
             <Route path="/">
               <div className="content-wrapper">
-                <Home />
+                <Dashboard />
               </div>
             </Route>
             <Route path="/courses">

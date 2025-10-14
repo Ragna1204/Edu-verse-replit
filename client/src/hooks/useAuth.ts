@@ -25,39 +25,108 @@ export interface ExtendedUser {
   updatedAt?: string;
 }
 
+// TEMPORARY: Simulating auth flow for testing - simplified version
 export function useAuth() {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Listen to Firebase auth state - only if Firebase is configured
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth) {
-      setIsFirebaseLoading(false);
-      return;
+    // Check for stored user data
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('user');
+      }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setFirebaseUser(user);
-      setIsFirebaseLoading(false);
-    });
-
-    return () => unsubscribe();
+    // Simulate loading delay
+    const timer = setTimeout(() => setIsLoading(false), 100);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Get user data from backend if Firebase user exists
-  const { data: user, isLoading: isUserDataLoading } = useQuery({
-    queryKey: ["/api/auth/user", firebaseUser?.uid],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
-    enabled: !!firebaseUser && isFirebaseConfigured, // Only fetch if we have a Firebase user and Firebase is configured
-  });
+  const signIn = async (username: string, password: string) => {
+    const response = await fetch(`/api/auth/signin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
 
-  const isLoading = !isFirebaseConfigured ? false : (isFirebaseLoading || (firebaseUser && isUserDataLoading));
+    if (!response.ok) {
+      throw new Error('Sign in failed');
+    }
+
+    const data = await response.json();
+    setUser(data.user);
+    // Store in localStorage for persistence
+    localStorage.setItem('user', JSON.stringify(data.user));
+    return data;
+  };
+
+  const signUp = async (data: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    password: string;
+  }) => {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('Sign up failed');
+    }
+
+    const result = await response.json();
+    setUser(result.user);
+    return result;
+  };
+
+  const completeOnboarding = async (data: {
+    username: string;
+    grade: number;
+    board: string;
+    subjects: string[];
+  }) => {
+    if (!user?.id) throw new Error('User not found');
+
+    const response = await fetch(`/api/auth/onboard/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('Onboarding failed');
+    }
+
+    // Update the user with onboarding data
+    setUser({ ...user, ...data, isOnboarded: true });
+
+    // Set up a small delay to ensure state is updated before redirect
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 100);
+
+    return response.json();
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
 
   return {
-    user: user as ExtendedUser | null,
-    firebaseUser,
+    user,
     isLoading,
-    isAuthenticated: !!firebaseUser,
+    isAuthenticated: !!user,
+    signIn,
+    signUp,
+    completeOnboarding,
+    logout,
   };
 }

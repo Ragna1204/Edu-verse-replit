@@ -7,10 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, User, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Loader2, User, Lock, ArrowRight, AlertTriangle } from 'lucide-react';
 import { signInSchema, signUpSchema, SignInFormData, SignUpFormData } from '@/lib/authSchemas';
-import { isFirebaseConfigured } from '@/lib/firebase';
-import { signInWithEmail, signUpWithEmail, signInWithGoogle } from '@/lib/authUtils';
 
 interface AuthProps {
   onAuthSuccess: () => void;
@@ -24,7 +22,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     },
   });
@@ -32,7 +30,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   const signUpForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
       firstName: '',
       lastName: '',
@@ -40,46 +38,65 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   });
 
   const handleSignIn = async (data: SignInFormData) => {
-    if (!isFirebaseConfigured) {
-      setError('Authentication is not configured. Please contact administrator.');
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
     try {
-      await signInWithEmail(data.email, data.password);
-      onAuthSuccess();
+      // Custom username/password authentication via API
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Sign in failed');
+      }
+
+      const result = await response.json();
+      // Store user session or token as needed
+      localStorage.setItem('userId', result.user.id);
+      // Refresh the page to trigger auth hooks and routing
+      window.location.reload();
     } catch (error: any) {
       console.error('Sign in error:', error);
-      if (error.message?.includes('auth/')) {
-        setError('Invalid email or password. Please check your credentials.');
-      } else {
-        setError(error.message || 'Sign in failed. Please try again.');
-      }
+      setError(error.message || 'Sign in failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSignUp = async (data: SignUpFormData) => {
-    if (!isFirebaseConfigured) {
-      setError('Authentication is not configured. Please contact administrator.');
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
     try {
-      await signUpWithEmail(data.email, data.password);
-      // User will be redirected to onboarding after Firebase signup
+      // Custom username/password authentication via API
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Sign up failed');
+      }
+
+      const result = await response.json();
+      // Store user session or token as needed
+      localStorage.setItem('userId', result.user.id);
+
       onAuthSuccess();
     } catch (error: any) {
       console.error('Sign up error:', error);
-      if (error.message?.includes('auth/email-already-in-use')) {
-        setError('An account with this email already exists.');
-      } else if (error.message?.includes('auth/weak-password')) {
-        setError('Password should be at least 6 characters.');
+      if (error.message?.includes('username already exists')) {
+        setError('Username already taken. Please choose a different username.');
+      } else if (error.message?.includes('invalid username')) {
+        setError('Username can only contain letters, numbers, and underscores.');
       } else {
         setError(error.message || 'Sign up failed. Please try again.');
       }
@@ -89,31 +106,14 @@ export function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!isFirebaseConfigured) {
-      setError('Google authentication is not configured. Please contact administrator.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      await signInWithGoogle();
-      onAuthSuccess();
-    } catch (error: any) {
-      console.error('Google sign in error:', error);
-      if (error.message?.includes('auth/popup-closed-by-user')) {
-        setError('Sign in cancelled. Please try again.');
-      } else {
-        setError(error.message || 'Google sign in failed. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    setError('Google authentication is not available. Please use username and password.');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-primary/5 p-4">
+      <div className="cosmic-bg"></div>
+      <div className="cosmic-particles"></div>
+      <Card className="w-full max-w-md glass-card">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Welcome to EduVerse</CardTitle>
           <CardDescription className="text-center">
@@ -122,15 +122,6 @@ export function Auth({ onAuthSuccess }: AuthProps) {
         </CardHeader>
 
         <CardContent>
-          {!isFirebaseConfigured && (
-            <Alert className="mb-4 border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800">
-                <strong>Authentication Disabled:</strong> Firebase configuration is incomplete. Authentication features are currently disabled. To enable authentication, configure your Firebase project settings in the environment variables.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
@@ -139,32 +130,10 @@ export function Auth({ onAuthSuccess }: AuthProps) {
 
           <Button
             onClick={handleGoogleSignIn}
-            disabled={isLoading || !isFirebaseConfigured}
-            className="w-full mb-4 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+            disabled={true}
+            className="w-full mb-4 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 opacity-50 cursor-not-allowed"
           >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                <path
-                  fill="currentColor"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-            )}
-            Continue with Google
+            Continue with Google (Coming Soon)
           </Button>
 
           <div className="relative mb-4">
@@ -172,7 +141,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+              <span className="bg-background px-2 text-muted-foreground">Or continue with username</span>
             </div>
           </div>
 
@@ -185,20 +154,19 @@ export function Auth({ onAuthSuccess }: AuthProps) {
             <TabsContent value="signin" className="space-y-4">
               <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
                 <div>
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-username">Username</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="Enter your email"
+                      id="signin-username"
+                      placeholder="Enter your username"
                       className="pl-10"
-                      {...signInForm.register('email')}
+                      {...signInForm.register('username')}
                     />
                   </div>
-                  {signInForm.formState.errors.email && (
+                  {signInForm.formState.errors.username && (
                     <p className="text-sm text-red-600 mt-1">
-                      {signInForm.formState.errors.email.message}
+                      {signInForm.formState.errors.username.message}
                     </p>
                   )}
                 </div>
@@ -235,18 +203,32 @@ export function Auth({ onAuthSuccess }: AuthProps) {
 
             <TabsContent value="signup" className="space-y-4">
               <form onSubmit={signUpForm.handleSubmit(handleSignUp)} className="space-y-4">
+                <div>
+                  <Label htmlFor="signup-username">Username</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-username"
+                      placeholder="Choose a unique username"
+                      className="pl-10"
+                      {...signUpForm.register('username')}
+                    />
+                  </div>
+                  {signUpForm.formState.errors.username && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {signUpForm.formState.errors.username.message}
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="signup-firstName">First Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="signup-firstName"
-                        placeholder="First name"
-                        className="pl-10"
-                        {...signUpForm.register('firstName')}
-                      />
-                    </div>
+                    <Input
+                      id="signup-firstName"
+                      placeholder="First name"
+                      {...signUpForm.register('firstName')}
+                    />
                     {signUpForm.formState.errors.firstName && (
                       <p className="text-sm text-red-600 mt-1">
                         {signUpForm.formState.errors.firstName.message}
@@ -267,25 +249,6 @@ export function Auth({ onAuthSuccess }: AuthProps) {
                       </p>
                     )}
                   </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      className="pl-10"
-                      {...signUpForm.register('email')}
-                    />
-                  </div>
-                  {signUpForm.formState.errors.email && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {signUpForm.formState.errors.email.message}
-                    </p>
-                  )}
                 </div>
 
                 <div>
