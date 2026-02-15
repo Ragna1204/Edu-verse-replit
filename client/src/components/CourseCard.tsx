@@ -7,19 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  BookOpen, 
-  Clock, 
-  Users, 
-  Star, 
-  Eye, 
+import {
+  BookOpen,
+  Clock,
+  Users,
+  Star,
+  Eye,
   Crown,
-  CheckCircle 
+  CheckCircle
 } from "lucide-react";
 
 interface CourseCardProps {
   course: {
-    id: number;
+    id: string;
     title: string;
     description: string;
     category: string;
@@ -27,7 +27,7 @@ interface CourseCardProps {
     imageUrl?: string;
     estimatedHours: number;
     rating: number;
-    studentsCount: number;
+    enrollmentCount: number;
     isPublished: boolean;
   };
   enrollment?: {
@@ -96,7 +96,7 @@ export default function CourseCard({ course, enrollment, showProgress = false }:
   return (
     <Card className="glass-card hover-glow group overflow-hidden" data-testid={`course-card-${course.id}`}>
       <div className="relative">
-        <div 
+        <div
           className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center"
           style={{
             backgroundImage: course.imageUrl ? `url(${course.imageUrl})` : undefined,
@@ -144,7 +144,7 @@ export default function CourseCard({ course, enrollment, showProgress = false }:
         <h3 className="text-lg font-bold mb-2 line-clamp-2" data-testid={`course-title-${course.id}`}>
           {course.title}
         </h3>
-        
+
         <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
           {course.description}
         </p>
@@ -160,7 +160,7 @@ export default function CourseCard({ course, enrollment, showProgress = false }:
           </span>
           <span className="flex items-center">
             <Users className="w-3 h-3 mr-1" />
-            {course.studentsCount.toLocaleString()}
+            {(course.enrollmentCount || 0).toLocaleString()}
           </span>
         </div>
 
@@ -182,17 +182,17 @@ export default function CourseCard({ course, enrollment, showProgress = false }:
 
         <div className="flex items-center space-x-2">
           {enrollment ? (
-            <Button 
-              asChild 
+            <Button
+              asChild
               className="flex-1 bg-secondary hover:bg-secondary/90 shadow-lg shadow-secondary/20"
               data-testid={`button-continue-${course.id}`}
             >
-              <Link href={`/courses/${course.id}`}>
+              <Link href={`/course/${course.id}`}>
                 Continue Learning
               </Link>
             </Button>
           ) : (
-            <Button 
+            <Button
               onClick={() => enrollMutation.mutate()}
               disabled={enrollMutation.isPending}
               className="flex-1 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
@@ -201,13 +201,13 @@ export default function CourseCard({ course, enrollment, showProgress = false }:
               {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"}
             </Button>
           )}
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="icon"
             asChild
             data-testid={`button-preview-${course.id}`}
           >
-            <Link href={`/courses/${course.id}`}>
+            <Link href={`/course/${course.id}`}>
               <Eye className="w-4 h-4" />
             </Link>
           </Button>

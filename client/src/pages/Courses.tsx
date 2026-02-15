@@ -21,14 +21,17 @@ export default function Courses() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: courses = [], isLoading } = useQuery({
-    queryKey: ["/api/courses", { category: selectedCategory }],
+  const { data: courses = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/courses"],
   });
 
-  const filteredCourses = Array.isArray(courses) ? courses.filter((course: any) =>
-    course.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) : [];
+  const filteredCourses = Array.isArray(courses) ? courses.filter((course: any) => {
+    const matchesCategory = selectedCategory === "all" || course.category === selectedCategory;
+    const matchesSearch = !searchQuery ||
+      course.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  }) : [];
 
   return (
     <div className="py-8">
