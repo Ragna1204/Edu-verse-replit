@@ -3,6 +3,12 @@ import { getCurrentUserId } from "@/hooks/useAuth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    if (res.status === 401) {
+      // Auto-logout on 401
+      localStorage.removeItem('user');
+      window.location.href = '/auth';
+      throw new Error("Session expired. Redirecting to login...");
+    }
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }

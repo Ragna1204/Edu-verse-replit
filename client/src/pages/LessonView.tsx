@@ -98,6 +98,31 @@ export default function LessonView() {
         },
     });
 
+    // Quiz logic — robust JSON parsing
+    const quizQuestions: QuizQuestion[] = useMemo(() => {
+        if (lesson?.type !== 'quiz') return [];
+        try {
+            let parsed = lesson.content;
+            if (typeof parsed === 'string') {
+                parsed = JSON.parse(parsed);
+            }
+            // If Gemini nested the array inside an object
+            if (parsed && !Array.isArray(parsed) && parsed.questions) {
+                parsed = parsed.questions;
+            }
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((q: any) => q.question && Array.isArray(q.options));
+        } catch {
+            return [];
+        }
+    }, [lesson]);
+
+    // Navigation helpers
+    const lessonList = (allLessons as any[]) || [];
+    const currentIndex = lessonList.findIndex((l: any) => l.id === id);
+    const prevLesson = currentIndex > 0 ? lessonList[currentIndex - 1] : null;
+    const nextLessonNav = currentIndex < lessonList.length - 1 ? lessonList[currentIndex + 1] : null;
+
     // Reset quiz state when lesson changes
     useEffect(() => {
         setCurrentQuestion(0);
@@ -134,30 +159,7 @@ export default function LessonView() {
         );
     }
 
-    // Navigation helpers
-    const lessonList = (allLessons as any[]) || [];
-    const currentIndex = lessonList.findIndex((l: any) => l.id === id);
-    const prevLesson = currentIndex > 0 ? lessonList[currentIndex - 1] : null;
-    const nextLessonNav = currentIndex < lessonList.length - 1 ? lessonList[currentIndex + 1] : null;
 
-    // Quiz logic — robust JSON parsing
-    const quizQuestions: QuizQuestion[] = useMemo(() => {
-        if (lesson?.type !== 'quiz') return [];
-        try {
-            let parsed = lesson.content;
-            if (typeof parsed === 'string') {
-                parsed = JSON.parse(parsed);
-            }
-            // If Gemini nested the array inside an object
-            if (parsed && !Array.isArray(parsed) && parsed.questions) {
-                parsed = parsed.questions;
-            }
-            if (!Array.isArray(parsed)) return [];
-            return parsed.filter((q: any) => q.question && Array.isArray(q.options));
-        } catch {
-            return [];
-        }
-    }, [lesson]);
 
     const handleOptionSelect = (optionIndex: number) => {
         if (showExplanation) return;

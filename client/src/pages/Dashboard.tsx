@@ -26,7 +26,7 @@ export default function Dashboard() {
     retry: false,
   });
 
-  const { data: userCourses, isLoading: coursesLoading, error: coursesError } = useQuery({
+  const { data: userCourses, isLoading: coursesLoading, error: coursesError } = useQuery<any[]>({
     queryKey: ["/api/user/enrollments"],
     enabled: isAuthenticated && !isLoading,
     retry: false,
@@ -84,7 +84,6 @@ export default function Dashboard() {
     );
   }
 
-  const currentCourse = userCourses?.[0];
   const level = user?.level || 1;
   const totalXP = user?.xp || 0;
   const xpToNextLevel = (level * 1000) - totalXP;
@@ -108,40 +107,75 @@ export default function Dashboard() {
             {/* Progress Overview */}
             <AnalyticsDashboard />
 
-            {/* Current Course Progress */}
-            {currentCourse && (
-              <>
-              <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center">
-                      <BookOpen className="w-5 h-5 text-secondary mr-3" />
-                      Current Course
-                    </span>
-                    <span className="text-sm text-muted-foreground font-normal">
-                      {currentCourse.course?.title}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-semibold">{Math.round(currentCourse.progress)}%</span>
-                    </div>
-                    <Progress value={currentCourse.progress} className="h-2" />
-                  </div>
-                  <Button
-                    className="w-full bg-secondary hover:bg-secondary/90 shadow-lg shadow-secondary/20"
-                    data-testid="button-continue-course"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Continue Learning
-                  </Button>
-                </CardContent>
-              </Card>
-              </>
-            )}
+            {/* Enrolled Courses */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center">
+                  <BookOpen className="w-5 h-5 mr-2 text-primary" />
+                  My Courses
+                </h2>
+                <Button variant="ghost" size="sm" onClick={() => window.location.href = '/courses'}>
+                  Browse All
+                </Button>
+              </div>
+
+              {coursesLoading ? (
+                Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-48 w-full rounded-xl" />
+                ))
+              ) : userCourses && userCourses.length > 0 ? (
+                userCourses.map((enrollment: any) => (
+                  <Card key={enrollment.courseId} className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-start justify-between">
+                        <div>
+                          <span className="text-lg font-semibold">{enrollment.course?.title}</span>
+                          <p className="text-sm text-muted-foreground font-normal mt-1 line-clamp-2">
+                            {enrollment.course?.description}
+                          </p>
+                        </div>
+                        {enrollment.course?.category && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary font-medium whitespace-nowrap ml-2">
+                            {enrollment.course.category}
+                          </span>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Progress</span>
+                          <span className="font-semibold">{Math.round(enrollment.progress || 0)}%</span>
+                        </div>
+                        <Progress value={enrollment.progress || 0} className="h-2" />
+                      </div>
+                      <div className="flex gap-3">
+                        <Button
+                          className="flex-1 bg-secondary hover:bg-secondary/90 shadow-lg shadow-secondary/20"
+                          onClick={() => window.location.href = `/courses/${enrollment.courseId}`}
+                        >
+                          <Play className="w-4 h-4 mr-2" />
+                          {enrollment.progress > 0 ? "Continue" : "Start Learning"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <Card className="glass-card border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+                    <BookOpen className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No courses yet</h3>
+                    <p className="text-muted-foreground mb-6 max-w-sm">
+                      Start your learning journey by enrolling in your first course.
+                    </p>
+                    <Button onClick={() => window.location.href = '/courses'}>
+                      Explore Courses
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
             <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
               <CardHeader>
@@ -194,7 +228,7 @@ export default function Dashboard() {
                 <div className="w-full bg-border rounded-full h-3 mb-2">
                   <div
                     className="bg-gradient-to-r from-accent to-primary h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${xpProgress}%`}}
+                    style={{ width: `${xpProgress}%` }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">

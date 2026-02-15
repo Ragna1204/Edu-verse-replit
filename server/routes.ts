@@ -291,10 +291,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = requireAuth(req, res);
       if (!userId) return;
 
+      // Verify user exists (prevents foreign key constraint errors with stale localized storage)
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found or session expired" });
+      }
+
+      // Verify course exists
+      const course = await storage.getCourse(req.params.id);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+
       const enrollment = await storage.enrollUser(userId, req.params.id);
 
       // Award XP for enrollment
-      await storage.updateUserXP(userId, 25);
+      const xpAmount = 25;
+      await storage.updateUserXP(userId, xpAmount);
 
       res.status(201).json(enrollment);
     } catch (error) {
