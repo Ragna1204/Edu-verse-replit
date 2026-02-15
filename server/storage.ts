@@ -433,6 +433,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics operations
+  // Analytics operations
+  async updateDailyAnalytics(userId: string, updates: { xp?: number, time?: number, quiz?: boolean, score?: number }): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    const [existing] = await db.select().from(userAnalytics).where(and(eq(userAnalytics.userId, userId), eq(userAnalytics.date, today)));
+
+    if (existing) {
+      // Calculate new moving average for accuracy
+      let newAccuracy = existing.accuracyRate || 0;
+      if (updates.quiz && updates.score !== undefined) {
+        const totalQuizzes = (existing.quizzesCompleted || 0);
+        const currentTotalScore = (existing.accuracyRate || 0) * totalQuizzes;
+        newAccuracy = (currentTotalScore + updates.score) / (totalQuizzes + 1);
+      }
+
+      await db.update(userAnalytics).set({
+        xpEarned: sql`${userAnalytics.xpEarned} + ${updates.xp || 0}`,
+        timeSpent: sql`${userAnalytics.timeSpent} + ${updates.time || 0}`,
+        quizzesCompleted: sql`${userAnalytics.quizzesCompleted} + ${updates.quiz ? 1 : 0}`,
+        accuracyRate: updates.quiz ? newAccuracy : undefined
+      }).where(eq(userAnalytics.id, existing.id));
+    } else {
+      await db.insert(userAnalytics).values({
+        userId,
+        date: today,
+        xpEarned: updates.xp || 0,
+        timeSpent: updates.time || 0,
+        quizzesCompleted: updates.quiz ? 1 : 0,
+        accuracyRate: updates.score || 0
+      });
+    }
+  }
+
   async updateUserXP(userId: string, xpToAdd: number): Promise<void> {
     await db
       .update(users)
@@ -442,6 +474,9 @@ export class DatabaseStorage implements IStorage {
         lastActiveDate: new Date().toISOString(),
       })
       .where(eq(users.id, userId));
+
+    // Also update daily analytics
+    await this.updateDailyAnalytics(userId, { xp: xpToAdd });
   }
 
   async updateUserStreak(userId: string, streak: number): Promise<void> {
@@ -535,17 +570,34 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(userAnalytics.date);
 
-    let accumulatedXp = 0;
-    return analyticsData.map(data => {
-      accumulatedXp += data.xpEarned || 0;
-      return {
-        date: data.date || '',
-        xpEarned: data.xpEarned || 0,
-        accumulatedXp,
-        quizzesCompleted: data.quizzesCompleted || 0,
-        accuracyRate: data.accuracyRate || 0,
-      };
-    });
+    // Ensure we have entries for all days
+    const result = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (days - 1 - i));
+      const dateString = d.toISOString().split('T')[0];
+
+      const existing = analyticsData.find(a => a.date === dateString);
+      if (existing) {
+        result.push({
+          date: existing.date,
+          xpEarned: existing.xpEarned || 0,
+          timeSpent: existing.timeSpent || 0,
+          quizzesCompleted: existing.quizzesCompleted || 0,
+          accuracyRate: existing.accuracyRate || 0
+        });
+      } else {
+        result.push({
+          date: dateString,
+          xpEarned: 0,
+          timeSpent: 0,
+          quizzesCompleted: 0,
+          accuracyRate: 0
+        });
+      }
+    }
+
+    return result;
   }
 
   async getAccuracyRatePerTopic(userId: string): Promise<any[]> {
@@ -595,6 +647,8 @@ export class DatabaseStorage implements IStorage {
         eq(userLessonProgress.lessonId, lessonId)
       ));
 
+    let updatedOrCreated;
+
     if (existing) {
       // Update existing progress
       const [updated] = await db.update(userLessonProgress)
@@ -605,21 +659,31 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(userLessonProgress.id, existing.id))
         .returning();
-      return updated;
+      updatedOrCreated = updated;
+    } else {
+      // Create new progress record
+      const [created] = await db.insert(userLessonProgress)
+        .values({
+          userId,
+          lessonId,
+          courseId,
+          isCompleted: true,
+          score: score ?? null,
+          completedAt: new Date().toISOString(),
+        })
+        .returning();
+      updatedOrCreated = created;
     }
 
-    // Create new progress record
-    const [created] = await db.insert(userLessonProgress)
-      .values({
-        userId,
-        lessonId,
-        courseId,
-        isCompleted: true,
-        score: score ?? null,
-        completedAt: new Date().toISOString(),
-      })
-      .returning();
-    return created;
+    // Update daily analytics for time spent (estimate 15 mins per lesson)
+    // and quiz completion if score is present
+    await this.updateDailyAnalytics(userId, {
+      time: 15,
+      quiz: score !== undefined,
+      score: score
+    });
+
+    return updatedOrCreated;
   }
 }
 

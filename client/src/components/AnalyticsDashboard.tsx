@@ -17,13 +17,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function AnalyticsDashboard() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  const { data: analyticsSummary, isLoading: summaryLoading } = useQuery({
+  const { data: analyticsSummary, isLoading: summaryLoading } = useQuery<any[]>({
     queryKey: ['/api/user/analytics/summary'],
     enabled: isAuthenticated && !isLoading,
     retry: false,
   });
 
-  const { data: accuracyByTopic, isLoading: accuracyLoading } = useQuery({
+  const { data: accuracyByTopic, isLoading: accuracyLoading } = useQuery<any[]>({
     queryKey: ['/api/user/analytics/accuracy-by-topic'],
     enabled: isAuthenticated && !isLoading,
     retry: false,
@@ -46,16 +46,20 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* XP Growth Over Time */}
+      {/* XP Gained (Daily) */}
       <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
         <CardHeader>
-          <CardTitle>XP Growth Over Time</CardTitle>
+          <CardTitle>XP Gained</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={analyticsSummary}>
+            <BarChart data={analyticsSummary}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
+              <XAxis
+                dataKey="date"
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'short' })}
+              />
               <YAxis stroke="hsl(var(--muted-foreground))" />
               <Tooltip
                 contentStyle={{
@@ -64,30 +68,34 @@ export default function AnalyticsDashboard() {
                   borderRadius: '0.5rem',
                 }}
                 itemStyle={{ color: 'hsl(var(--foreground))' }}
+                labelFormatter={(value) => new Date(value).toLocaleDateString()}
               />
-              <Line
-                type="monotone"
-                dataKey="accumulatedXp"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={false}
+              <Bar
+                dataKey="xpEarned"
+                name="XP Earned"
+                fill="hsl(var(--primary))"
+                radius={[4, 4, 0, 0]}
               />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Accuracy Rate Over Time */}
+      {/* Accuracy Rate */}
       <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
         <CardHeader>
-          <CardTitle>Accuracy Rate Over Time</CardTitle>
+          <CardTitle>Accuracy Rate</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={analyticsSummary}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
-              <YAxis stroke="hsl(var(--muted-foreground))" />
+              <XAxis
+                dataKey="date"
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'short' })}
+              />
+              <YAxis stroke="hsl(var(--muted-foreground))" domain={[0, 100]} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--background))',
@@ -95,29 +103,37 @@ export default function AnalyticsDashboard() {
                   borderRadius: '0.5rem',
                 }}
                 itemStyle={{ color: 'hsl(var(--foreground))' }}
+                formatter={(value: number) => [`${Math.round(value)}%`, 'Accuracy']}
+                labelFormatter={(value) => new Date(value).toLocaleDateString()}
               />
               <Line
                 type="monotone"
                 dataKey="accuracyRate"
+                name="Accuracy"
                 stroke="hsl(var(--secondary))"
                 strokeWidth={2}
-                dot={false}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Accuracy Rate Per Topic */}
+      {/* Time Spent (Replacing Accuracy Per Topic) */}
       <Card className="glass-card transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-1">
         <CardHeader>
-          <CardTitle>Accuracy Rate Per Topic</CardTitle>
+          <CardTitle>Time Spent (Minutes)</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={accuracyByTopic}>
+            <BarChart data={analyticsSummary}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="topic" stroke="hsl(var(--muted-foreground))" />
+              <XAxis
+                dataKey="date"
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'short' })}
+              />
               <YAxis stroke="hsl(var(--muted-foreground))" />
               <Tooltip
                 contentStyle={{
@@ -126,8 +142,14 @@ export default function AnalyticsDashboard() {
                   borderRadius: '0.5rem',
                 }}
                 itemStyle={{ color: 'hsl(var(--foreground))' }}
+                labelFormatter={(value) => new Date(value).toLocaleDateString()}
               />
-              <Bar dataKey="averageScore" fill="hsl(var(--accent))" />
+              <Bar
+                dataKey="timeSpent"
+                name="Minutes"
+                fill="hsl(var(--accent))"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
