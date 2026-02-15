@@ -6,71 +6,98 @@ import crypto from 'crypto';
 async function seed() {
   console.log("Starting database seed...");
 
-  // Seed badges
+  // Seed badges (with colors instead of rarity)
   const existingBadges = await db.select().from(badges);
   if (existingBadges.length > 0) {
     console.log("Badges already seeded.");
   } else {
     await db.insert(badges).values([
       {
-        name: "First Quiz",
+        name: "Welcome!",
+        description: "Create your EduVerse account.",
+        icon: "🎉",
+        type: "milestone",
+        criteria: { type: "account_created" },
+        xpReward: 10,
+        color: "#4CAF50", // green
+      },
+      {
+        name: "First Steps",
+        description: "Complete your first lesson.",
+        icon: "📖",
+        type: "milestone",
+        criteria: { type: "first_lesson" },
+        xpReward: 10,
+        color: "#2196F3", // blue
+      },
+      {
+        name: "Quiz Whiz",
         description: "Complete your first quiz.",
-        iconClass: "fas fa-flag-checkered",
+        icon: "🧠",
         type: "milestone",
         criteria: { type: "first_quiz" },
-        xpReward: 50,
-        rarity: "common",
+        xpReward: 15,
+        color: "#2196F3", // blue
       },
       {
         name: "Perfectionist",
-        description: "Get a perfect score on a quiz.",
-        iconClass: "fas fa-bullseye",
+        description: "Get a perfect score on any quiz.",
+        icon: "⭐",
         type: "achievement",
         criteria: { type: "perfect_score" },
-        xpReward: 100,
-        rarity: "rare",
+        xpReward: 25,
+        color: "#FF9800", // orange
       },
       {
-        name: "Streak Starter",
-        description: "Maintain a 3-day streak.",
-        iconClass: "fas fa-fire",
-        type: "streak",
-        criteria: { type: "streak", days: 3 },
-        xpReward: 75,
-        rarity: "common",
-      },
-      {
-        name: "Knowledge Seeker",
-        description: "Complete 5 quizzes.",
-        iconClass: "fas fa-book-open",
+        name: "Course Graduate",
+        description: "Complete your first course.",
+        icon: "🎓",
         type: "milestone",
-        criteria: { type: "quiz_count", count: 5 },
-        xpReward: 100,
-        rarity: "common",
+        criteria: { type: "first_course" },
+        xpReward: 50,
+        color: "#FF9800", // orange
       },
       {
-        name: "Speed Demon",
-        description: "Complete a quiz in under 2 minutes.",
-        iconClass: "fas fa-bolt",
-        type: "achievement",
-        criteria: { type: "speed", maxSeconds: 120 },
-        xpReward: 75,
-        rarity: "rare",
+        name: "Bookworm",
+        description: "Complete 10 lessons.",
+        icon: "📚",
+        type: "milestone",
+        criteria: { type: "lesson_count", count: 10 },
+        xpReward: 30,
+        color: "#FF9800", // orange
       },
       {
-        name: "Week Warrior",
-        description: "Maintain a 7-day streak.",
-        iconClass: "fas fa-fire-flame-curved",
+        name: "On Fire",
+        description: "Maintain a 5-day streak.",
+        icon: "🔥",
         type: "streak",
-        criteria: { type: "streak", days: 7 },
-        xpReward: 150,
-        rarity: "epic",
+        criteria: { type: "streak", days: 5 },
+        xpReward: 30,
+        color: "#9C27B0", // purple
+      },
+      {
+        name: "Unstoppable",
+        description: "Maintain a 10-day streak.",
+        icon: "⚡",
+        type: "streak",
+        criteria: { type: "streak", days: 10 },
+        xpReward: 50,
+        color: "#9C27B0", // purple
+      },
+      {
+        name: "Scholar",
+        description: "Complete 3 courses.",
+        icon: "🏆",
+        type: "milestone",
+        criteria: { type: "course_count", count: 3 },
+        xpReward: 100,
+        color: "#FFD700", // gold
       },
     ]);
     console.log("Badges seeded successfully.");
   }
 
-  // Seed educator users
+  // Seed users
   const existingUsers = await db.select().from(users);
   if (existingUsers.length === 0) {
     console.log("Seeding default users...");
@@ -86,6 +113,7 @@ async function seed() {
         role: "educator",
         isEducator: true,
         isOnboarded: true,
+        educationLevel: "postgraduate",
         xp: 5000,
         level: 6,
         streak: 15,
@@ -100,6 +128,7 @@ async function seed() {
         role: "educator",
         isEducator: true,
         isOnboarded: true,
+        educationLevel: "postgraduate",
         xp: 3500,
         level: 4,
         streak: 8,
@@ -114,9 +143,7 @@ async function seed() {
         role: "student",
         isEducator: false,
         isOnboarded: true,
-        grade: 10,
-        board: "CBSE",
-        subjects: ["Mathematics", "Physics", "Computer Science"],
+        educationLevel: "high_school",
         xp: 1250,
         level: 2,
         streak: 3,
@@ -132,67 +159,67 @@ async function seed() {
 
     const [course1] = await db.insert(courses).values([{
       title: "Introduction to Artificial Intelligence",
-      description: "Learn the basics of Artificial Intelligence and Machine Learning. This course covers fundamental concepts including neural networks, deep learning, natural language processing, and computer vision. Ideal for beginners looking to understand how AI is transforming our world.",
-      category: "Technology",
+      description: "Learn the basics of Artificial Intelligence and Machine Learning. This course covers fundamental concepts including neural networks, deep learning, natural language processing, and computer vision.",
+      category: "ai-ml",
       difficulty: "beginner",
-      imageUrl: "https://picsum.photos/seed/ai-intro/800/450",
       educatorId: "educator-1",
       modules: 5,
       estimatedHours: 10,
       isPublished: true,
       rating: 4.7,
+      xpReward: 100,
     }]).returning();
 
     const [course2] = await db.insert(courses).values([{
       title: "Web Development with React",
       description: "Master modern web development using React and its ecosystem. Learn hooks, state management, routing, API integration, and best practices for building production-ready applications.",
-      category: "Programming",
+      category: "programming",
       difficulty: "intermediate",
-      imageUrl: "https://picsum.photos/seed/react-dev/800/450",
       educatorId: "educator-1",
       modules: 8,
       estimatedHours: 20,
       isPublished: true,
       rating: 4.8,
+      xpReward: 150,
     }]).returning();
 
     const [course3] = await db.insert(courses).values([{
       title: "Data Science Fundamentals",
       description: "Explore the core concepts and tools of Data Science. Learn data analysis, visualization, statistical methods, and machine learning basics using Python and popular libraries.",
-      category: "Data Science",
+      category: "data-science",
       difficulty: "beginner",
-      imageUrl: "https://picsum.photos/seed/data-sci/800/450",
       educatorId: "educator-2",
       modules: 6,
       estimatedHours: 15,
       isPublished: true,
       rating: 4.5,
+      xpReward: 100,
     }]).returning();
 
     const [course4] = await db.insert(courses).values([{
       title: "Mathematics for Machine Learning",
       description: "Build strong mathematical foundations for ML. Covers linear algebra, calculus, probability, and statistics - the essential math you need to understand and implement machine learning algorithms.",
-      category: "Mathematics",
+      category: "ai-ml",
       difficulty: "intermediate",
-      imageUrl: "https://picsum.photos/seed/math-ml/800/450",
       educatorId: "educator-2",
       modules: 7,
       estimatedHours: 18,
       isPublished: true,
       rating: 4.6,
+      xpReward: 150,
     }]).returning();
 
     const [course5] = await db.insert(courses).values([{
       title: "Advanced Python Programming",
       description: "Take your Python skills to the next level with advanced concepts including decorators, generators, metaclasses, async programming, and design patterns.",
-      category: "Programming",
+      category: "programming",
       difficulty: "advanced",
-      imageUrl: "https://picsum.photos/seed/python-adv/800/450",
       educatorId: "educator-1",
       modules: 10,
       estimatedHours: 25,
       isPublished: true,
       rating: 4.9,
+      xpReward: 200,
     }]).returning();
 
     console.log("Courses seeded successfully.");
@@ -241,10 +268,9 @@ async function seed() {
 
     console.log("Quizzes seeded successfully.");
 
-    // Seed Questions for each quiz
+    // Seed Questions
     console.log("Seeding questions...");
 
-    // AI Basics Quiz Questions
     await db.insert(questions).values([
       {
         courseId: course1.id,
@@ -257,6 +283,7 @@ async function seed() {
           { text: "Applied Informatics", isCorrect: false },
         ],
         difficulty: "easy",
+        topic: "AI Fundamentals",
         explanation: "AI stands for Artificial Intelligence, which is the simulation of human intelligence by machines.",
       },
       {
@@ -270,7 +297,8 @@ async function seed() {
           { text: "Managed Learning", isCorrect: false },
         ],
         difficulty: "easy",
-        explanation: "Supervised learning is one of the three main types of machine learning (along with unsupervised and reinforcement learning).",
+        topic: "Machine Learning Types",
+        explanation: "Supervised learning is one of the three main types of machine learning.",
       },
       {
         courseId: course1.id,
@@ -283,6 +311,7 @@ async function seed() {
           { text: "The internet", isCorrect: false },
         ],
         difficulty: "easy",
+        topic: "Neural Networks",
         explanation: "Neural networks are computing systems inspired by the biological neural networks in the human brain.",
       },
       {
@@ -296,6 +325,7 @@ async function seed() {
           { text: "Microsoft", isCorrect: false },
         ],
         difficulty: "medium",
+        topic: "AI Companies & Models",
         explanation: "OpenAI developed the GPT (Generative Pre-trained Transformer) series of language models.",
       },
       {
@@ -309,11 +339,11 @@ async function seed() {
           { text: "When the dataset is too large", isCorrect: false },
         ],
         difficulty: "medium",
-        explanation: "Overfitting occurs when a model learns the training data too well, including noise and outliers, leading to poor generalization.",
+        topic: "ML Concepts",
+        explanation: "Overfitting occurs when a model learns the training data too well, including noise, leading to poor generalization.",
       },
     ]);
 
-    // React Hooks Questions
     await db.insert(questions).values([
       {
         courseId: course2.id,
@@ -326,6 +356,7 @@ async function seed() {
           { text: "useContext", isCorrect: false },
         ],
         difficulty: "easy",
+        topic: "React Hooks",
         explanation: "useState is the React hook specifically designed for managing state in functional components.",
       },
       {
@@ -339,7 +370,8 @@ async function seed() {
           { text: "Never", isCorrect: false },
         ],
         difficulty: "easy",
-        explanation: "Without a dependency array, useEffect runs after every render. Pass an empty array [] to run only on mount.",
+        topic: "React Hooks",
+        explanation: "Without a dependency array, useEffect runs after every render.",
       },
       {
         courseId: course2.id,
@@ -352,6 +384,7 @@ async function seed() {
           { text: "Creates a ref to a DOM element", isCorrect: false },
         ],
         difficulty: "medium",
+        topic: "React Performance",
         explanation: "useMemo memoizes expensive computed values, only recalculating when dependencies change.",
       },
       {
@@ -365,6 +398,7 @@ async function seed() {
           { text: "Subscribe to events", isCorrect: false },
         ],
         difficulty: "medium",
+        topic: "React Performance",
         explanation: "useCallback returns a memoized callback function that only changes when its dependencies change.",
       },
       {
@@ -378,11 +412,11 @@ async function seed() {
           { text: "useReducer", isCorrect: false },
         ],
         difficulty: "easy",
-        explanation: "useContext allows you to consume context values, enabling state sharing across the component tree without prop drilling.",
+        topic: "React Context",
+        explanation: "useContext allows you to consume context values, enabling state sharing across the component tree.",
       },
     ]);
 
-    // Data Analysis Questions
     await db.insert(questions).values([
       {
         courseId: course3.id,
@@ -395,7 +429,8 @@ async function seed() {
           { text: "To compress data files", isCorrect: false },
         ],
         difficulty: "easy",
-        explanation: "Data visualization uses charts, graphs, and maps to present data in a way that is easy to understand and interpret.",
+        topic: "Data Visualization",
+        explanation: "Data visualization uses charts, graphs, and maps to present data in a way that is easy to understand.",
       },
       {
         courseId: course3.id,
@@ -408,7 +443,8 @@ async function seed() {
           { text: "A machine learning algorithm", isCorrect: false },
         ],
         difficulty: "easy",
-        explanation: "A DataFrame in pandas is a 2-dimensional labeled data structure with columns of potentially different types, similar to a spreadsheet.",
+        topic: "Pandas",
+        explanation: "A DataFrame in pandas is a 2-dimensional labeled data structure with columns of potentially different types.",
       },
       {
         courseId: course3.id,
@@ -421,6 +457,7 @@ async function seed() {
           { text: "Electronic Data Access", isCorrect: false },
         ],
         difficulty: "easy",
+        topic: "Data Analysis",
         explanation: "EDA (Exploratory Data Analysis) is an approach to analyzing data sets to summarize their main characteristics.",
       },
       {
@@ -434,11 +471,11 @@ async function seed() {
           { text: "Range", isCorrect: false },
         ],
         difficulty: "medium",
-        explanation: "The mean (average) is most affected by outliers because it takes into account every value in the dataset.",
+        topic: "Statistics",
+        explanation: "The mean is most affected by outliers because it takes into account every value in the dataset.",
       },
     ]);
 
-    // Linear Algebra Questions
     await db.insert(questions).values([
       {
         courseId: course4.id,
@@ -451,6 +488,7 @@ async function seed() {
           { text: "The inverse of the matrix", isCorrect: false },
         ],
         difficulty: "easy",
+        topic: "Matrix Operations",
         explanation: "Multiplying any matrix by the identity matrix returns the original matrix: A × I = A.",
       },
       {
@@ -464,6 +502,7 @@ async function seed() {
           { text: "a + d", isCorrect: false },
         ],
         difficulty: "medium",
+        topic: "Determinants",
         explanation: "The determinant of a 2x2 matrix [[a,b],[c,d]] is calculated as (a×d) - (b×c).",
       },
       {
@@ -477,7 +516,8 @@ async function seed() {
           { text: "Data encryption", isCorrect: false },
         ],
         difficulty: "hard",
-        explanation: "Eigenvectors are fundamental to Principal Component Analysis (PCA), a key technique for dimensionality reduction in ML.",
+        topic: "Eigenvectors",
+        explanation: "Eigenvectors are fundamental to Principal Component Analysis (PCA), a key technique for dimensionality reduction.",
       },
       {
         courseId: course4.id,
@@ -490,6 +530,7 @@ async function seed() {
           { text: "The concatenation of both vectors", isCorrect: false },
         ],
         difficulty: "medium",
+        topic: "Vector Operations",
         explanation: "The dot product of two vectors results in a scalar: a·b = Σ(ai × bi).",
       },
     ]);

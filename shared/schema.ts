@@ -15,7 +15,7 @@ export const sessions = sqliteTable(
   "sessions",
   {
     sid: text("sid").primaryKey(),
-    sess: text("sess").notNull(), // JSON stored as text in SQLite
+    sess: text("sess").notNull(),
     expire: text("expire").notNull(),
   },
   (table) => ({
@@ -31,9 +31,7 @@ export const users = sqliteTable("users", {
   lastName: text("last_name"),
   username: text("username").unique(),
   passwordHash: text("password_hash"),
-  grade: integer("grade"), // 1-12 for students
-  board: text("board"), // CBSE, ICSE, State, etc.
-  subjects: text("subjects", { mode: "json" }).$type<string[]>(), // array of subjects
+  educationLevel: text("education_level"), // middle_school, high_school, undergraduate, postgraduate
   isOnboarded: integer("is_onboarded", { mode: "boolean" }).default(false),
   profileImageUrl: text("profile_image_url"),
   role: text("role").default("student"), // student, educator, admin
@@ -51,11 +49,11 @@ export const badges = sqliteTable("badges", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   description: text("description"),
-  iconClass: text("icon_class").notNull(), // FontAwesome class
+  icon: text("icon").notNull(), // emoji icon like 🎉, 🔥, etc.
   type: text("type").notNull(), // achievement, milestone, streak, skill
-  criteria: text("criteria", { mode: "json" }).$type<Record<string, any>>().notNull(), // Requirements to earn badge
+  criteria: text("criteria", { mode: "json" }).$type<Record<string, any>>().notNull(),
   xpReward: integer("xp_reward").default(0),
-  rarity: text("rarity").default("common"), // common, rare, epic, legendary
+  color: text("color").default("#4CAF50"), // hex color for badge display
   createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
@@ -81,8 +79,33 @@ export const courses = sqliteTable("courses", {
   rating: real("rating").default(0),
   enrollmentCount: integer("enrollment_count").default(0),
   isPublished: integer("is_published", { mode: "boolean" }).default(false),
+  xpReward: integer("xp_reward").default(100), // XP for completing the course
   createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
+});
+
+// Lessons table (reading materials and course quizzes)
+export const lessons = sqliteTable("lessons", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  title: text("title").notNull(),
+  type: text("type").notNull(), // 'reading' or 'quiz'
+  content: text("content").notNull(), // markdown for readings, JSON string for quizzes
+  order: integer("order").notNull(), // display order within the course
+  xpReward: integer("xp_reward").default(5), // 5 for reading, 15 for quiz
+  estimatedMinutes: integer("estimated_minutes").default(10),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+});
+
+// User lesson progress
+export const userLessonProgress = sqliteTable("user_lesson_progress", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  lessonId: text("lesson_id").references(() => lessons.id).notNull(),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  isCompleted: integer("is_completed", { mode: "boolean" }).default(false),
+  score: integer("score"), // percentage score for quiz lessons
+  completedAt: text("completed_at"),
 });
 
 // Course enrollments
@@ -98,7 +121,7 @@ export const enrollments = sqliteTable("enrollments", {
   completedAt: text("completed_at"),
 });
 
-// Quizzes table
+// Quizzes table (for course quizzes — linked to courses)
 export const quizzes = sqliteTable("quizzes", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   courseId: text("course_id").references(() => courses.id).notNull(),
@@ -106,7 +129,7 @@ export const quizzes = sqliteTable("quizzes", {
   description: text("description"),
   difficulty: text("difficulty").notNull(), // easy, medium, hard
   timeLimit: integer("time_limit"), // minutes
-  passingScore: integer("passing_score").default(70), // percentage
+  passingScore: integer("passing_score").default(70),
   isAdaptive: integer("is_adaptive", { mode: "boolean" }).default(true),
   createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
@@ -120,6 +143,7 @@ export const questions = sqliteTable("questions", {
   options: text("options", { mode: "json" }).$type<Array<{ text: string; isCorrect: boolean }>>().notNull(),
   difficulty: text("difficulty").notNull(), // easy, medium, hard
   explanation: text("explanation"),
+  topic: text("topic"), // topic tag for adaptive practice tracking
   createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
@@ -144,12 +168,67 @@ export const quizAttempts = sqliteTable("quiz_attempts", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").references(() => users.id).notNull(),
   quizId: text("quiz_id").references(() => quizzes.id).notNull(),
-  answers: text("answers", { mode: "json" }).$type<any>().notNull(), // User's answers
+  answers: text("answers", { mode: "json" }).$type<any>().notNull(),
   score: integer("score").notNull(), // percentage
   timeSpent: integer("time_spent"), // seconds
-  difficulty: text("difficulty").notNull(), // easy, medium, hard
+  difficulty: text("difficulty").notNull(),
   isPassed: integer("is_passed", { mode: "boolean" }).notNull(),
   completedAt: text("completed_at").$defaultFn(() => new Date().toISOString()),
+});
+
+// Practice quiz topics (standalone adaptive quizzes)
+export const practiceTopics = sqliteTable("practice_topics", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // programming, data-science, ai-ml, etc.
+  description: text("description"),
+  icon: text("icon"), // emoji
+  questionCount: integer("question_count").default(0),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+});
+
+// Practice questions (standalone, not tied to courses)
+export const practiceQuestions = sqliteTable("practice_questions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  topicId: text("topic_id").references(() => practiceTopics.id).notNull(),
+  content: text("content").notNull(),
+  options: text("options", { mode: "json" }).$type<Array<{ text: string; isCorrect: boolean }>>().notNull(),
+  difficulty: text("difficulty").notNull(), // easy, medium, hard
+  explanation: text("explanation"),
+  subtopic: text("subtopic"), // finer-grained topic for tracking weak/strong areas
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+});
+
+// User topic performance (tracks strong/weak areas)
+export const userTopicPerformance = sqliteTable("user_topic_performance", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  topicId: text("topic_id").references(() => practiceTopics.id).notNull(),
+  subtopic: text("subtopic"),
+  totalAttempted: integer("total_attempted").default(0),
+  totalCorrect: integer("total_correct").default(0),
+  currentStreak: integer("current_streak").default(0), // consecutive correct answers
+  lastDifficulty: text("last_difficulty").default("easy"),
+  lastAttemptedAt: text("last_attempted_at"),
+});
+
+// Practice sessions
+export const practiceSessions = sqliteTable("practice_sessions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  topicId: text("topic_id").references(() => practiceTopics.id).notNull(),
+  questionsAnswered: integer("questions_answered").default(0),
+  correctAnswers: integer("correct_answers").default(0),
+  currentDifficulty: text("current_difficulty").default("easy"),
+  answers: text("answers", { mode: "json" }).$type<Array<{
+    questionId: string;
+    selectedOption: number;
+    isCorrect: boolean;
+    subtopic: string | null;
+  }>>().default([]),
+  isComplete: integer("is_complete", { mode: "boolean" }).default(false),
+  startedAt: text("started_at").$defaultFn(() => new Date().toISOString()),
+  completedAt: text("completed_at"),
 });
 
 // Community posts
@@ -157,7 +236,7 @@ export const posts = sqliteTable("posts", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
-  tags: text("tags", { mode: "json" }).$type<string[]>(), // Array of tag strings
+  tags: text("tags", { mode: "json" }).$type<string[]>(),
   likes: integer("likes").default(0),
   comments: integer("comments").default(0),
   shares: integer("shares").default(0),
@@ -214,11 +293,12 @@ export const studyGroupMembers = sqliteTable("study_group_members", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   groupId: text("group_id").references(() => studyGroups.id).notNull(),
   userId: text("user_id").references(() => users.id).notNull(),
-  role: text("role").default("member"), // member, admin
+  role: text("role").default("member"),
   joinedAt: text("joined_at").$defaultFn(() => new Date().toISOString()),
 });
 
-// Relations
+// ─── Relations ───────────────────────────────────────────────
+
 export const usersRelations = relations(users, ({ many }) => ({
   enrollments: many(enrollments),
   quizAttempts: many(quizAttempts),
@@ -227,6 +307,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdCourses: many(courses),
   aiConversations: many(aiConversations),
   analytics: many(userAnalytics),
+  lessonProgress: many(userLessonProgress),
+  topicPerformance: many(userTopicPerformance),
 }));
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
@@ -237,6 +319,30 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   enrollments: many(enrollments),
   quizzes: many(quizzes),
   questions: many(questions),
+  lessons: many(lessons),
+}));
+
+export const lessonsRelations = relations(lessons, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [lessons.courseId],
+    references: [courses.id],
+  }),
+  progress: many(userLessonProgress),
+}));
+
+export const userLessonProgressRelations = relations(userLessonProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userLessonProgress.userId],
+    references: [users.id],
+  }),
+  lesson: one(lessons, {
+    fields: [userLessonProgress.lessonId],
+    references: [lessons.id],
+  }),
+  course: one(courses, {
+    fields: [userLessonProgress.courseId],
+    references: [courses.id],
+  }),
 }));
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
@@ -292,12 +398,42 @@ export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
   }),
 }));
 
-// Schema types
+export const practiceTopicsRelations = relations(practiceTopics, ({ many }) => ({
+  questions: many(practiceQuestions),
+  performance: many(userTopicPerformance),
+}));
+
+export const practiceQuestionsRelations = relations(practiceQuestions, ({ one }) => ({
+  topic: one(practiceTopics, {
+    fields: [practiceQuestions.topicId],
+    references: [practiceTopics.id],
+  }),
+}));
+
+export const userTopicPerformanceRelations = relations(userTopicPerformance, ({ one }) => ({
+  user: one(users, {
+    fields: [userTopicPerformance.userId],
+    references: [users.id],
+  }),
+  topic: one(practiceTopics, {
+    fields: [userTopicPerformance.topicId],
+    references: [practiceTopics.id],
+  }),
+}));
+
+// ─── Types ───────────────────────────────────────────────────
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
 export type InsertCourse = typeof courses.$inferInsert;
 export type Course = typeof courses.$inferSelect;
+
+export type InsertLesson = typeof lessons.$inferInsert;
+export type Lesson = typeof lessons.$inferSelect;
+
+export type InsertUserLessonProgress = typeof userLessonProgress.$inferInsert;
+export type UserLessonProgress = typeof userLessonProgress.$inferSelect;
 
 export type InsertEnrollment = typeof enrollments.$inferInsert;
 export type Enrollment = typeof enrollments.$inferSelect;
@@ -332,7 +468,20 @@ export type AiConversation = typeof aiConversations.$inferSelect;
 export type InsertUserAnalytics = typeof userAnalytics.$inferInsert;
 export type UserAnalytics = typeof userAnalytics.$inferSelect;
 
-// Insert schemas for validation
+export type InsertPracticeTopic = typeof practiceTopics.$inferInsert;
+export type PracticeTopic = typeof practiceTopics.$inferSelect;
+
+export type InsertPracticeQuestion = typeof practiceQuestions.$inferInsert;
+export type PracticeQuestion = typeof practiceQuestions.$inferSelect;
+
+export type InsertUserTopicPerformance = typeof userTopicPerformance.$inferInsert;
+export type UserTopicPerformance = typeof userTopicPerformance.$inferSelect;
+
+export type InsertPracticeSession = typeof practiceSessions.$inferInsert;
+export type PracticeSession = typeof practiceSessions.$inferSelect;
+
+// ─── Validation schemas ─────────────────────────────────────
+
 export const insertCourseSchema = createInsertSchema(courses).omit({
   id: true,
   createdAt: true,

@@ -1,15 +1,10 @@
 import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, User, BookOpen, GraduationCap, Check, ArrowRight } from 'lucide-react';
+import { Loader2, GraduationCap, Check, ArrowRight, BookOpen, School, Building, Award } from 'lucide-react';
 import { onboardingSchema, OnboardingFormData } from '@/lib/authSchemas';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -22,60 +17,63 @@ interface OnboardingProps {
   };
 }
 
-const availableSubjects = [
-  'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Hindi',
-  'History', 'Geography', 'Civics', 'Economics', 'Computer Science',
-  'Sanskrit', 'French', 'German'
-];
+const educationLevels = [
+  {
+    value: 'middle_school',
+    label: 'Middle School',
+    description: 'Currently in or below 10th grade',
+    icon: School,
+    color: 'from-green-500 to-emerald-600',
+  },
+  {
+    value: 'high_school',
+    label: 'High School',
+    description: '10th to 12th grade',
+    icon: BookOpen,
+    color: 'from-blue-500 to-indigo-600',
+  },
+  {
+    value: 'undergraduate',
+    label: 'Undergraduate',
+    description: 'College or university student',
+    icon: Building,
+    color: 'from-purple-500 to-violet-600',
+  },
+  {
+    value: 'postgraduate',
+    label: 'Postgraduate',
+    description: 'Masters, PhD, or professional',
+    icon: Award,
+    color: 'from-amber-500 to-orange-600',
+  },
+] as const;
 
-const boards = [
-  'CBSE', 'ICSE', 'State Board', 'IB', 'Cambridge', 'Others'
-];
-
-export function Onboarding({ onComplete, initialData, skipButton }: OnboardingProps & { skipButton?: boolean }) {
+export function Onboarding({ onComplete, initialData }: OnboardingProps) {
   const { completeOnboarding } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      grade: 9,
-      board: '',
-      subjects: [],
+      educationLevel: undefined,
     },
   });
 
-  const handleSubjectToggle = (subject: string) => {
-    const newSelectedSubjects = selectedSubjects.includes(subject)
-      ? selectedSubjects.filter(s => s !== subject)
-      : [...selectedSubjects, subject];
-
-    setSelectedSubjects(newSelectedSubjects);
-    form.setValue('subjects', newSelectedSubjects);
+  const handleLevelSelect = (value: string) => {
+    setSelectedLevel(value);
+    form.setValue('educationLevel', value as any);
   };
 
   const onSubmit = async (data: OnboardingFormData) => {
-    console.log('Onboarding onSubmit called with data:', data);
     setIsLoading(true);
     setError(null);
 
     try {
-      console.log('Calling completeOnboarding with:', {
-        grade: data.grade,
-        board: data.board,
-        subjects: data.subjects,
+      await completeOnboarding({
+        educationLevel: data.educationLevel,
       });
-
-      // Send onboarding data to backend using the hook method
-      const response = await completeOnboarding({
-        grade: data.grade,
-        board: data.board,
-        subjects: data.subjects,
-      });
-
-      console.log('Onboarding completed successfully, response:', response);
 
       // Call onComplete to trigger reload from App.tsx
       onComplete();
@@ -100,13 +98,15 @@ export function Onboarding({ onComplete, initialData, skipButton }: OnboardingPr
 
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-2xl">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
-              <GraduationCap className="h-6 w-6" />
-              Complete Your Profile
+          <CardHeader className="space-y-1 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+              <GraduationCap className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl">
+              Welcome{initialData?.firstName ? `, ${initialData.firstName}` : ''}! 🎉
             </CardTitle>
-            <CardDescription className="text-center">
-              Help us personalize your learning experience
+            <CardDescription>
+              Tell us your education level so we can personalize your learning experience
             </CardDescription>
           </CardHeader>
 
@@ -117,156 +117,64 @@ export function Onboarding({ onComplete, initialData, skipButton }: OnboardingPr
               </Alert>
             )}
 
-            {/* Welcome Section */}
-            <div className="mb-6 text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="h-8 w-8 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-semibold">
-                Welcome, {initialData?.firstName} {initialData?.lastName}!
-              </h3>
-            </div>
-
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Grade and Board */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="grade">Grade</Label>
-                  <Controller
-                    name="grade"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value.toString()}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your grade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
-                            <SelectItem key={grade} value={grade.toString()}>
-                              Grade {grade}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {form.formState.errors.grade && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {form.formState.errors.grade.message}
-                    </p>
-                  )}
-                </div>
+              {/* Education Level Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {educationLevels.map((level) => {
+                  const Icon = level.icon;
+                  const isSelected = selectedLevel === level.value;
 
-                <div>
-                  <Label htmlFor="board">Board</Label>
-                  <Controller
-                    name="board"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your board" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {boards.map((board) => (
-                            <SelectItem key={board} value={board} className="justify-between">
-                              {board}
-                              {board === 'CBSE' && (
-                                <Badge variant="secondary" className="ml-2">Most Common</Badge>
-                              )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {form.formState.errors.board && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {form.formState.errors.board.message}
-                    </p>
-                  )}
-                </div>
+                  return (
+                    <button
+                      key={level.value}
+                      type="button"
+                      onClick={() => handleLevelSelect(level.value)}
+                      className={`
+                        relative p-5 rounded-xl border-2 transition-all duration-200 text-left
+                        ${isSelected
+                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10 scale-[1.02]'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        }
+                      `}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                      )}
+
+                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${level.color} flex items-center justify-center mb-3`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+
+                      <h3 className="font-semibold text-lg mb-1">{level.label}</h3>
+                      <p className="text-sm text-muted-foreground">{level.description}</p>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Subjects */}
-              <div>
-                <Label className="text-base font-semibold">Select Your Subjects</Label>
-                <p className="text-sm text-gray-600 mb-4">
-                  Choose the subjects you want to focus on in your learning journey
+              {form.formState.errors.educationLevel && (
+                <p className="text-sm text-destructive text-center">
+                  {form.formState.errors.educationLevel.message}
                 </p>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {availableSubjects.map((subject) => (
-                    <div key={subject} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={subject}
-                        checked={selectedSubjects.includes(subject)}
-                        onCheckedChange={() => handleSubjectToggle(subject)}
-                      />
-                      <Label
-                        htmlFor={subject}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        {subject}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-
-                {selectedSubjects.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">Selected ({selectedSubjects.length})</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedSubjects.map((subject) => (
-                        <Badge key={subject} variant="secondary" className="flex items-center gap-1">
-                          <BookOpen className="h-3 w-3" />
-                          {subject}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-4 w-4 p-0 ml-1"
-                            onClick={() => handleSubjectToggle(subject)}
-                          >
-                            ×
-                          </Button>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {form.formState.errors.subjects && (
-                  <p className="text-sm text-red-600 mt-2">
-                    {form.formState.errors.subjects.message}
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Submit Button */}
-              <div className="flex flex-col gap-3">
-                <Button type="submit" disabled={isLoading || selectedSubjects.length === 0} className="w-full">
-                  {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Complete Setup
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-                {skipButton && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={onComplete}
-                    className="w-full"
-                  >
-                    Skip for now
-                  </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || !selectedLevel}
+                className="w-full h-12 text-base"
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    Get Started
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
                 )}
-              </div>
+              </Button>
             </form>
           </CardContent>
         </Card>

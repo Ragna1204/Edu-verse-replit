@@ -132,9 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: user.lastName,
           email: user.email,
           isOnboarded: user.isOnboarded,
-          grade: user.grade,
-          board: user.board,
-          subjects: user.subjects,
+          educationLevel: user.educationLevel,
           role: user.role,
           xp: user.xp,
           level: user.level,
@@ -165,9 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       lastName: user.lastName,
       email: user.email,
       isOnboarded: user.isOnboarded,
-      grade: user.grade,
-      board: user.board,
-      subjects: user.subjects,
+      educationLevel: user.educationLevel,
       role: user.role,
       xp: user.xp,
       level: user.level,
@@ -185,14 +181,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/auth/onboard/:userId', async (req, res) => {
     try {
       const { userId } = req.params;
-      const { grade, board, subjects } = req.body;
+      const { educationLevel } = req.body;
+
+      if (!educationLevel) {
+        return res.status(400).json({ message: 'Education level is required' });
+      }
 
       await storage.updateUserOnboarding(userId, {
-        grade,
-        board,
-        subjects,
+        educationLevel,
         isOnboarded: true,
       });
+
+      // Award "Welcome!" badge on onboarding
+      try {
+        const allBadges = await storage.getBadges();
+        const welcomeBadge = allBadges.find(b => {
+          const criteria = b.criteria as any;
+          return criteria?.type === 'account_created';
+        });
+        if (welcomeBadge) {
+          await storage.awardBadge(userId, welcomeBadge.id);
+        }
+      } catch { /* badge award is best-effort */ }
+
+      // Award signup XP
+      await storage.updateUserXP(userId, 10);
 
       const updatedUser = await storage.getUser(userId);
       res.json({

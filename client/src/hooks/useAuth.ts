@@ -7,9 +7,7 @@ export interface ExtendedUser {
   firstName?: string;
   lastName?: string;
   username?: string;
-  grade?: number;
-  board?: string;
-  subjects?: string[];
+  educationLevel?: string;
   isOnboarded?: boolean;
   profileImageUrl?: string;
   role?: string;
@@ -104,9 +102,7 @@ export function useAuth() {
   };
 
   const completeOnboarding = async (data: {
-    grade: number;
-    board: string;
-    subjects: string[];
+    educationLevel: string;
   }) => {
     if (!user?.id) throw new Error('User not found');
 
@@ -117,9 +113,7 @@ export function useAuth() {
         'X-User-Id': user.id,
       },
       body: JSON.stringify({
-        grade: data.grade,
-        board: data.board,
-        subjects: data.subjects,
+        educationLevel: data.educationLevel,
         isOnboarded: true,
       }),
     });

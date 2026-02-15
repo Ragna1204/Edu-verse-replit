@@ -40,7 +40,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  updateUserOnboarding(userId: string, data: { grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void>;
+  updateUserOnboarding(userId: string, data: { educationLevel: string; isOnboarded: boolean }): Promise<void>;
   getUserByUsername(username: string): Promise<User | undefined>;
 
   // Course operations
@@ -129,13 +129,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserOnboarding(userId: string, data: { grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void> {
+  async updateUserOnboarding(userId: string, data: { educationLevel: string; isOnboarded: boolean }): Promise<void> {
     await db
       .update(users)
       .set({
-        grade: data.grade,
-        board: data.board,
-        subjects: data.subjects,
+        educationLevel: data.educationLevel,
         isOnboarded: data.isOnboarded,
         updatedAt: new Date().toISOString(),
       })

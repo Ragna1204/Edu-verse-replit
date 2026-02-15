@@ -57,9 +57,7 @@ function createTablesIfNotExist() {
         last_name TEXT,
         username TEXT UNIQUE,
         password_hash TEXT,
-        grade INTEGER,
-        board TEXT,
-        subjects TEXT,
+        education_level TEXT,
         is_onboarded INTEGER DEFAULT 0,
         profile_image_url TEXT,
         role TEXT DEFAULT 'student',
@@ -81,11 +79,11 @@ function createTablesIfNotExist() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
-        icon_class TEXT NOT NULL,
+        icon TEXT NOT NULL,
         type TEXT NOT NULL,
         criteria TEXT NOT NULL,
         xp_reward INTEGER DEFAULT 0,
-        rarity TEXT DEFAULT 'common',
+        color TEXT DEFAULT '#4CAF50',
         created_at TEXT
       );
     `);
@@ -119,11 +117,44 @@ function createTablesIfNotExist() {
         rating REAL DEFAULT 0,
         enrollment_count INTEGER DEFAULT 0,
         is_published INTEGER DEFAULT 0,
+        xp_reward INTEGER DEFAULT 100,
         created_at TEXT,
         updated_at TEXT
       );
     `);
     console.log('Created courses table');
+  }
+
+  if (!existingTables.has('lessons')) {
+    sqlite.exec(`
+      CREATE TABLE lessons (
+        id TEXT PRIMARY KEY,
+        course_id TEXT NOT NULL REFERENCES courses(id),
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        content TEXT NOT NULL,
+        "order" INTEGER NOT NULL,
+        xp_reward INTEGER DEFAULT 5,
+        estimated_minutes INTEGER DEFAULT 10,
+        created_at TEXT
+      );
+    `);
+    console.log('Created lessons table');
+  }
+
+  if (!existingTables.has('user_lesson_progress')) {
+    sqlite.exec(`
+      CREATE TABLE user_lesson_progress (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        lesson_id TEXT NOT NULL REFERENCES lessons(id),
+        course_id TEXT NOT NULL REFERENCES courses(id),
+        is_completed INTEGER DEFAULT 0,
+        score INTEGER,
+        completed_at TEXT
+      );
+    `);
+    console.log('Created user_lesson_progress table');
   }
 
   if (!existingTables.has('enrollments')) {
@@ -170,6 +201,7 @@ function createTablesIfNotExist() {
         options TEXT NOT NULL,
         difficulty TEXT NOT NULL,
         explanation TEXT,
+        topic TEXT,
         created_at TEXT
       );
     `);
@@ -211,6 +243,72 @@ function createTablesIfNotExist() {
       );
     `);
     console.log('Created quiz_attempts table');
+  }
+
+  if (!existingTables.has('practice_topics')) {
+    sqlite.exec(`
+      CREATE TABLE practice_topics (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        question_count INTEGER DEFAULT 0,
+        created_at TEXT
+      );
+    `);
+    console.log('Created practice_topics table');
+  }
+
+  if (!existingTables.has('practice_questions')) {
+    sqlite.exec(`
+      CREATE TABLE practice_questions (
+        id TEXT PRIMARY KEY,
+        topic_id TEXT NOT NULL REFERENCES practice_topics(id),
+        content TEXT NOT NULL,
+        options TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        explanation TEXT,
+        subtopic TEXT,
+        created_at TEXT
+      );
+    `);
+    console.log('Created practice_questions table');
+  }
+
+  if (!existingTables.has('user_topic_performance')) {
+    sqlite.exec(`
+      CREATE TABLE user_topic_performance (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        topic_id TEXT NOT NULL REFERENCES practice_topics(id),
+        subtopic TEXT,
+        total_attempted INTEGER DEFAULT 0,
+        total_correct INTEGER DEFAULT 0,
+        current_streak INTEGER DEFAULT 0,
+        last_difficulty TEXT DEFAULT 'easy',
+        last_attempted_at TEXT
+      );
+    `);
+    console.log('Created user_topic_performance table');
+  }
+
+  if (!existingTables.has('practice_sessions')) {
+    sqlite.exec(`
+      CREATE TABLE practice_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        topic_id TEXT NOT NULL REFERENCES practice_topics(id),
+        questions_answered INTEGER DEFAULT 0,
+        correct_answers INTEGER DEFAULT 0,
+        current_difficulty TEXT DEFAULT 'easy',
+        answers TEXT DEFAULT '[]',
+        is_complete INTEGER DEFAULT 0,
+        started_at TEXT,
+        completed_at TEXT
+      );
+    `);
+    console.log('Created practice_sessions table');
   }
 
   if (!existingTables.has('posts')) {

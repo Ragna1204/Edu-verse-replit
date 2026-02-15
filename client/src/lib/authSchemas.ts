@@ -1,4 +1,4 @@
-// Username-based authentication schemas (replacing Firebase)
+// Username-based authentication schemas
 import { z } from 'zod';
 
 // Sign In Schema (username + password)
@@ -20,9 +20,9 @@ export const signUpSchema = z.object({
 
 // Onboarding Schema
 export const onboardingSchema = z.object({
-  grade: z.number().min(1).max(12),
-  board: z.string().min(1, 'Board is required'),
-  subjects: z.array(z.string()).min(1, 'At least one subject is required'),
+  educationLevel: z.enum(['middle_school', 'high_school', 'undergraduate', 'postgraduate'], {
+    required_error: 'Please select your education level',
+  }),
 });
 
 export type SignInFormData = z.infer<typeof signInSchema>;
