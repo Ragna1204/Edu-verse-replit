@@ -14,6 +14,8 @@ import {
   userQuizSessions,
   studyGroups,
   studyGroupMembers,
+  lessons,
+  userLessonProgress,
   type User,
   type UpsertUser,
   type Course,
@@ -32,9 +34,13 @@ import {
   type Question,
   type UserQuizSession,
   type InsertUserQuizSession,
+  type Lesson,
+  type InsertLesson,
+  type UserLessonProgress,
+  type InsertUserLessonProgress,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, gte, lte, inArray, like } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lte, inArray, like, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -98,6 +104,13 @@ export interface IStorage {
   getRecentActivity(userId: string): Promise<any[]>;
   getAnalyticsSummary(userId: string, days: number): Promise<any[]>;
   getAccuracyRatePerTopic(userId: string): Promise<any[]>;
+
+  // Lesson operations
+  getLessonsByCourse(courseId: string): Promise<Lesson[]>;
+  getLesson(id: string): Promise<Lesson | undefined>;
+  createLesson(lesson: InsertLesson): Promise<Lesson>;
+  getUserLessonProgress(userId: string, courseId: string): Promise<UserLessonProgress[]>;
+  completeLesson(userId: string, lessonId: string, courseId: string, score?: number): Promise<UserLessonProgress>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -548,6 +561,65 @@ export class DatabaseStorage implements IStorage {
       .groupBy(courses.category);
 
     return result;
+  }
+
+  // ==================== LESSON OPERATIONS ====================
+
+  async getLessonsByCourse(courseId: string): Promise<Lesson[]> {
+    return db.select().from(lessons).where(eq(lessons.courseId, courseId)).orderBy(asc(lessons.order));
+  }
+
+  async getLesson(id: string): Promise<Lesson | undefined> {
+    const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
+    return lesson;
+  }
+
+  async createLesson(lesson: InsertLesson): Promise<Lesson> {
+    const [created] = await db.insert(lessons).values(lesson).returning();
+    return created;
+  }
+
+  async getUserLessonProgress(userId: string, courseId: string): Promise<UserLessonProgress[]> {
+    return db.select().from(userLessonProgress)
+      .where(and(
+        eq(userLessonProgress.userId, userId),
+        eq(userLessonProgress.courseId, courseId)
+      ));
+  }
+
+  async completeLesson(userId: string, lessonId: string, courseId: string, score?: number): Promise<UserLessonProgress> {
+    // Check if progress already exists
+    const [existing] = await db.select().from(userLessonProgress)
+      .where(and(
+        eq(userLessonProgress.userId, userId),
+        eq(userLessonProgress.lessonId, lessonId)
+      ));
+
+    if (existing) {
+      // Update existing progress
+      const [updated] = await db.update(userLessonProgress)
+        .set({
+          isCompleted: true,
+          score: score ?? existing.score,
+          completedAt: new Date().toISOString(),
+        })
+        .where(eq(userLessonProgress.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    // Create new progress record
+    const [created] = await db.insert(userLessonProgress)
+      .values({
+        userId,
+        lessonId,
+        courseId,
+        isCompleted: true,
+        score: score ?? null,
+        completedAt: new Date().toISOString(),
+      })
+      .returning();
+    return created;
   }
 }
 

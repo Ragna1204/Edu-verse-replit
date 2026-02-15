@@ -16,6 +16,7 @@ import QuizForm from "@/pages/educator/QuizForm";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Course from "@/pages/Course";
+import LessonView from "@/pages/LessonView";
 import Layout from "@/components/Layout";
 import { Auth } from "@/pages/Auth";
 import { Onboarding } from "@/pages/Onboarding";
@@ -119,6 +120,13 @@ export default function Router() {
               {(params) => (
                 <div className="content-wrapper">
                   <Course />
+                </div>
+              )}
+            </Route>
+            <Route path="/lesson/:id">
+              {(params) => (
+                <div className="content-wrapper">
+                  <LessonView />
                 </div>
               )}
             </Route>

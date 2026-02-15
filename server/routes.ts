@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import crypto from "crypto";
-import { generateTutorResponse, generateQuizQuestions, provideLearningRecommendations, adaptQuizDifficulty } from "./services/gemini";
+import { generateTutorResponse, generateQuizQuestions, provideLearningRecommendations, adaptQuizDifficulty, generateCourseContent } from "./services/gemini";
 import { checkAndAwardBadges } from "./services/gamification";
 
 // ----- Auth helpers -----
@@ -300,6 +300,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error enrolling:", error);
       res.status(500).json({ message: "Failed to enroll" });
+    }
+  });
+
+  // ==================== LESSON ROUTES ====================
+
+  // Get all lessons for a course (with user progress if authenticated)
+  app.get('/api/courses/:courseId/lessons', async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const userId = getUserId(req);
+
+      const lessonList = await storage.getLessonsByCourse(courseId);
+
+      if (userId) {
+        const progress = await storage.getUserLessonProgress(userId, courseId);
+        const progressMap = new Map(progress.map(p => [p.lessonId, p]));
+
+        const lessonsWithProgress = lessonList.map(lesson => ({
+          ...lesson,
+          progress: progressMap.get(lesson.id) || null,
+        }));
+        return res.json(lessonsWithProgress);
+      }
+
+      res.json(lessonList);
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+      res.status(500).json({ message: 'Failed to fetch lessons' });
+    }
+  });
+
+  // Get a single lesson by ID
+  app.get('/api/lessons/:id', async (req, res) => {
+    try {
+      const lesson = await storage.getLesson(req.params.id);
+      if (!lesson) {
+        return res.status(404).json({ message: 'Lesson not found' });
+      }
+      res.json(lesson);
+    } catch (error) {
+      console.error('Error fetching lesson:', error);
+      res.status(500).json({ message: 'Failed to fetch lesson' });
+    }
+  });
+
+  // Generate lessons for a course using Gemini
+  app.post('/api/courses/:courseId/generate-lessons', async (req, res) => {
+    try {
+      const userId = requireAuth(req, res);
+      if (!userId) return;
+
+      const { courseId } = req.params;
+      const course = await storage.getCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+
+      // Check if lessons already exist
+      const existingLessons = await storage.getLessonsByCourse(courseId);
+      if (existingLessons.length > 0) {
+        return res.status(400).json({ message: 'Course already has lessons' });
+      }
+
+      const generatedLessons = await generateCourseContent(
+        course.title,
+        course.difficulty as 'beginner' | 'intermediate' | 'advanced',
+        course.modules || 8
+      );
+
+      // Save all generated lessons
+      const savedLessons = [];
+      for (let i = 0; i < generatedLessons.length; i++) {
+        const lesson = await storage.createLesson({
+          courseId,
+          title: generatedLessons[i].title,
+          type: generatedLessons[i].type,
+          content: generatedLessons[i].content,
+          order: i + 1,
+          xpReward: generatedLessons[i].xpReward,
+          estimatedMinutes: generatedLessons[i].estimatedMinutes,
+        });
+        savedLessons.push(lesson);
+      }
+
+      // Update course module count
+      await storage.updateCourse(courseId, { modules: savedLessons.length });
+
+      res.status(201).json(savedLessons);
+    } catch (error) {
+      console.error('Error generating lessons:', error);
+      res.status(500).json({ message: 'Failed to generate lessons' });
+    }
+  });
+
+  // Complete a lesson (awards XP)
+  app.post('/api/lessons/:lessonId/complete', async (req, res) => {
+    try {
+      const userId = requireAuth(req, res);
+      if (!userId) return;
+
+      const { lessonId } = req.params;
+      const { score } = req.body; // optional: quiz score
+
+      const lesson = await storage.getLesson(lessonId);
+      if (!lesson) {
+        return res.status(404).json({ message: 'Lesson not found' });
+      }
+
+      // Mark lesson as completed
+      const progress = await storage.completeLesson(userId, lessonId, lesson.courseId, score);
+
+      // Award XP
+      const xpEarned = lesson.xpReward || (lesson.type === 'quiz' ? 15 : 5);
+      await storage.updateUserXP(userId, xpEarned);
+
+      // Update enrollment progress
+      const allLessons = await storage.getLessonsByCourse(lesson.courseId);
+      const allProgress = await storage.getUserLessonProgress(userId, lesson.courseId);
+      const completedCount = allProgress.filter(p => p.isCompleted).length;
+      const progressPercent = Math.round((completedCount / allLessons.length) * 100);
+
+      await storage.updateEnrollmentProgress(userId, lesson.courseId, progressPercent, completedCount);
+
+      // Check if course is now complete
+      if (completedCount === allLessons.length) {
+        // Award course completion XP
+        const course = await storage.getCourse(lesson.courseId);
+        if (course?.xpReward) {
+          await storage.updateUserXP(userId, course.xpReward);
+        }
+      }
+
+      res.json({
+        progress,
+        xpEarned,
+        courseProgress: progressPercent,
+        courseComplete: completedCount === allLessons.length,
+      });
+    } catch (error) {
+      console.error('Error completing lesson:', error);
+      res.status(500).json({ message: 'Failed to complete lesson' });
     }
   });
 
