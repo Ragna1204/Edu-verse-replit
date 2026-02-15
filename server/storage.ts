@@ -39,6 +39,7 @@ import {
   type UserLessonProgress,
   type InsertUserLessonProgress,
 } from "@shared/schema";
+import { calculateLevelFromXP } from "@shared/xpLevel";
 import { db } from "./db";
 import { eq, desc, and, sql, gte, lte, inArray, like, asc } from "drizzle-orm";
 
@@ -466,14 +467,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserXP(userId: string, xpToAdd: number): Promise<void> {
-    await db
+    // Atomic increment to prevent race conditions
+    const [updatedUser] = await db
       .update(users)
       .set({
         xp: sql`${users.xp} + ${xpToAdd}`,
-        level: sql`(${users.xp} + ${xpToAdd}) / 1000 + 1`,
         lastActiveDate: new Date().toISOString(),
       })
-      .where(eq(users.id, userId));
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (updatedUser) {
+      const { level } = calculateLevelFromXP(updatedUser.xp || 0);
+
+      // Update level if different
+      if (level !== updatedUser.level) {
+        await db
+          .update(users)
+          .set({ level })
+          .where(eq(users.id, userId));
+      }
+    }
 
     // Also update daily analytics
     await this.updateDailyAnalytics(userId, { xp: xpToAdd });

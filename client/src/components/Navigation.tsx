@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { calculateLevelFromXP } from "@shared/xpLevel";
 
 export function Navigation() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -47,45 +48,40 @@ export function Navigation() {
           <div className="hidden md:flex items-center space-x-6">
             <Link
               href="/"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-              }`}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
               data-testid="nav-dashboard"
             >
               <i className="fas fa-home mr-2"></i>Dashboard
             </Link>
             <Link
               href="/courses"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/courses') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-              }`}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/courses') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
               data-testid="nav-courses"
             >
               <i className="fas fa-book mr-2"></i>Courses
             </Link>
             <Link
               href="/leaderboard"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/leaderboard') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-              }`}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/leaderboard') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
               data-testid="nav-leaderboard"
             >
               <i className="fas fa-trophy mr-2"></i>Leaderboard
             </Link>
             <Link
               href="/community"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/community') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-              }`}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/community') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
               data-testid="nav-community"
             >
               <i className="fas fa-users mr-2"></i>Community
             </Link>
             <Link
               href="/ai-tutor"
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/ai-tutor') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-              }`}
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/ai-tutor') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                }`}
               data-testid="nav-ai-tutor"
             >
               <i className="fas fa-robot mr-2"></i>AI Tutor
@@ -101,11 +97,15 @@ export function Navigation() {
               <span className="text-xs text-accent/80">day streak</span>
             </div>
 
-            {/* XP Points */}
-            <div className="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30">
-              <i className="fas fa-star text-primary"></i>
-              <span className="font-bold text-primary" data-testid="text-xp">{user?.xp || 0}</span>
-              <span className="text-xs text-primary/80">XP</span>
+            {/* XP Points & Level */}
+            <div className="hidden sm:flex items-center space-x-3 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+              <div className="flex flex-col items-end mr-1">
+                <span className="text-xs font-bold text-primary leading-none">Lvl {calculateLevelFromXP(user?.xp || 0).level}</span>
+                <span className="text-[10px] text-muted-foreground leading-none">{user?.xp || 0} XP</span>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary text-primary text-xs font-bold">
+                {calculateLevelFromXP(user?.xp || 0).progressPercentage.toFixed(0)}%
+              </div>
             </div>
 
             {/* Profile Dropdown */}
@@ -147,7 +147,7 @@ export function Navigation() {
                   <Separator />
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold">{user?.level || 1}</div>
+                      <div className="text-2xl font-bold">{calculateLevelFromXP(user?.xp || 0).level}</div>
                       <div className="text-xs text-muted-foreground">Level</div>
                     </div>
                     <div>
@@ -184,45 +184,40 @@ export function Navigation() {
             <div className="flex flex-col space-y-2">
               <Link
                 href="/"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-home mr-2"></i>Dashboard
               </Link>
               <Link
                 href="/courses"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/courses') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/courses') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-book mr-2"></i>Courses
               </Link>
               <Link
                 href="/leaderboard"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/leaderboard') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/leaderboard') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-trophy mr-2"></i>Leaderboard
               </Link>
               <Link
                 href="/community"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/community') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/community') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-users mr-2"></i>Community
               </Link>
               <Link
                 href="/ai-tutor"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive('/ai-tutor') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
-                }`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/ai-tutor') ? 'nav-active text-foreground' : 'text-muted-foreground hover:text-primary'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <i className="fas fa-robot mr-2"></i>AI Tutor

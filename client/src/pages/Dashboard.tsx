@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { calculateLevelFromXP } from "@shared/xpLevel";
 
 import ProgressRing from "@/components/ProgressRing";
 import Badge from "@/components/Badge";
@@ -84,10 +85,16 @@ export default function Dashboard() {
     );
   }
 
-  const level = user?.level || 1;
   const totalXP = user?.xp || 0;
-  const xpToNextLevel = (level * 1000) - totalXP;
-  const xpProgress = (totalXP % 1000) / 10;
+  const {
+    level,
+    currentLevelXP,
+    xpRequiredForNextLevel,
+    progressPercentage
+  } = calculateLevelFromXP(totalXP);
+
+  const xpToNextLevel = xpRequiredForNextLevel - currentLevelXP;
+  const xpProgress = progressPercentage;
 
   return (
     <div className="py-8">
