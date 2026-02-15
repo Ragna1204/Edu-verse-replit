@@ -24,8 +24,8 @@ export function HeroSection({ isNewUser = false }: HeroSectionProps) {
             Your AI-powered gamified learning universe. Explore courses, level up your knowledge, and compete with learners worldwide.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/courses">
-              <button 
+            <Link href="/auth">
+              <button
                 className="px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-lg transition-all hover-glow"
                 data-testid="button-start-learning"
               >
@@ -33,7 +33,7 @@ export function HeroSection({ isNewUser = false }: HeroSectionProps) {
               </button>
             </Link>
             <Link href="/courses">
-              <button 
+              <button
                 className="px-8 py-4 glass-card hover:bg-card text-foreground rounded-lg font-semibold text-lg transition-all border border-border hover:border-primary"
                 data-testid="button-explore-courses"
               >

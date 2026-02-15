@@ -1,201 +1,195 @@
 import { sql } from 'drizzle-orm';
 import {
   index,
-  jsonb,
-  pgTable,
-  timestamp,
-  varchar,
+  sqliteTable,
   text,
   integer,
-  boolean,
   real,
-  pgEnum,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table (mandatory for Replit Auth)
-export const sessions = pgTable(
+// Session storage table
+export const sessions = sqliteTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: text("sid").primaryKey(),
+    sess: text("sess").notNull(), // JSON stored as text in SQLite
+    expire: text("expire").notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (table) => ({
+    expireIdx: index("IDX_session_expire").on(table.expire),
+  }),
 );
 
-// User storage table (mandatory for Replit Auth)
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  username: varchar("username").unique(),
+// User storage table
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: text("email").unique(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  username: text("username").unique(),
+  passwordHash: text("password_hash"),
   grade: integer("grade"), // 1-12 for students
-  board: varchar("board"), // CBSE, ICSE, State, etc.
-  subjects: jsonb("subjects"), // array of subjects ["Mathematics", "Physics", etc.]
-  isOnboarded: boolean("is_onboarded").default(false),
-  profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").default("student"), // student, educator, admin
+  board: text("board"), // CBSE, ICSE, State, etc.
+  subjects: text("subjects", { mode: "json" }).$type<string[]>(), // array of subjects
+  isOnboarded: integer("is_onboarded", { mode: "boolean" }).default(false),
+  profileImageUrl: text("profile_image_url"),
+  role: text("role").default("student"), // student, educator, admin
   xp: integer("xp").default(0),
   level: integer("level").default(1),
   streak: integer("streak").default(0),
-  lastActiveDate: timestamp("last_active_date").defaultNow(),
-  isEducator: boolean("is_educator").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  lastActiveDate: text("last_active_date"),
+  isEducator: integer("is_educator", { mode: "boolean" }).default(false),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 });
 
-// Badge types enum
-export const badgeTypeEnum = pgEnum('badge_type', ['achievement', 'milestone', 'streak', 'skill']);
-
 // Badges table
-export const badges = pgTable("badges", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const badges = sqliteTable("badges", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
   description: text("description"),
-  iconClass: varchar("icon_class").notNull(), // FontAwesome class
-  type: badgeTypeEnum("type").notNull(),
-  criteria: jsonb("criteria").notNull(), // Requirements to earn badge
+  iconClass: text("icon_class").notNull(), // FontAwesome class
+  type: text("type").notNull(), // achievement, milestone, streak, skill
+  criteria: text("criteria", { mode: "json" }).$type<Record<string, any>>().notNull(), // Requirements to earn badge
   xpReward: integer("xp_reward").default(0),
-  rarity: varchar("rarity").default("common"), // common, rare, epic, legendary
-  createdAt: timestamp("created_at").defaultNow(),
+  rarity: text("rarity").default("common"), // common, rare, epic, legendary
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // User badges (earned badges)
-export const userBadges = pgTable("user_badges", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  badgeId: varchar("badge_id").references(() => badges.id).notNull(),
-  earnedAt: timestamp("earned_at").defaultNow(),
+export const userBadges = sqliteTable("user_badges", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  badgeId: text("badge_id").references(() => badges.id).notNull(),
+  earnedAt: text("earned_at").$defaultFn(() => new Date().toISOString()),
 });
 
-// Course difficulty enum
-export const courseDifficultyEnum = pgEnum('course_difficulty', ['beginner', 'intermediate', 'advanced']);
-
 // Courses table
-export const courses = pgTable("courses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: varchar("title").notNull(),
+export const courses = sqliteTable("courses", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  title: text("title").notNull(),
   description: text("description"),
-  category: varchar("category").notNull(),
-  difficulty: courseDifficultyEnum("difficulty").notNull(),
-  imageUrl: varchar("image_url"),
-  educatorId: varchar("educator_id").references(() => users.id),
+  category: text("category").notNull(),
+  difficulty: text("difficulty").notNull(), // beginner, intermediate, advanced
+  imageUrl: text("image_url"),
+  educatorId: text("educator_id").references(() => users.id),
   modules: integer("modules").default(0),
   estimatedHours: integer("estimated_hours").default(0),
   rating: real("rating").default(0),
   enrollmentCount: integer("enrollment_count").default(0),
-  isPublished: boolean("is_published").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isPublished: integer("is_published", { mode: "boolean" }).default(false),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Course enrollments
-export const enrollments = pgTable("enrollments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  courseId: varchar("course_id").references(() => courses.id).notNull(),
+export const enrollments = sqliteTable("enrollments", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  courseId: text("course_id").references(() => courses.id).notNull(),
   progress: integer("progress").default(0), // percentage 0-100
   completedModules: integer("completed_modules").default(0),
   timeSpent: integer("time_spent").default(0), // minutes
-  isCompleted: boolean("is_completed").default(false),
-  enrolledAt: timestamp("enrolled_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
+  isCompleted: integer("is_completed", { mode: "boolean" }).default(false),
+  enrolledAt: text("enrolled_at").$defaultFn(() => new Date().toISOString()),
+  completedAt: text("completed_at"),
 });
 
-// Quiz difficulty enum
-export const quizDifficultyEnum = pgEnum('quiz_difficulty', ['easy', 'medium', 'hard']);
-
 // Quizzes table
-export const quizzes = pgTable("quizzes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  courseId: varchar("course_id").references(() => courses.id).notNull(),
-  title: varchar("title").notNull(),
+export const quizzes = sqliteTable("quizzes", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  title: text("title").notNull(),
   description: text("description"),
-  difficulty: quizDifficultyEnum("difficulty").notNull(),
+  difficulty: text("difficulty").notNull(), // easy, medium, hard
   timeLimit: integer("time_limit"), // minutes
   passingScore: integer("passing_score").default(70), // percentage
-  isAdaptive: boolean("is_adaptive").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+  isAdaptive: integer("is_adaptive", { mode: "boolean" }).default(true),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Questions table
-export const questions = pgTable("questions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  courseId: varchar("course_id").references(() => courses.id).notNull(),
+export const questions = sqliteTable("questions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  quizId: text("quiz_id").references(() => quizzes.id),
   content: text("content").notNull(),
-  options: jsonb("options").notNull(), // { text: string, isCorrect: boolean }[]
-  difficulty: quizDifficultyEnum("difficulty").notNull(),
+  options: text("options", { mode: "json" }).$type<Array<{ text: string; isCorrect: boolean }>>().notNull(),
+  difficulty: text("difficulty").notNull(), // easy, medium, hard
   explanation: text("explanation"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // User quiz sessions table
-export const userQuizSessions = pgTable("user_quiz_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  quizId: varchar("quiz_id").references(() => quizzes.id).notNull(),
-  currentQuestionId: varchar("current_question_id").references(() => questions.id),
+export const userQuizSessions = sqliteTable("user_quiz_sessions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  quizId: text("quiz_id").references(() => quizzes.id).notNull(),
+  currentQuestionIndex: integer("current_question_index").default(0),
   score: integer("score").default(0),
-  streak: integer("streak").default(0),
-  performanceHistory: jsonb("performance_history").default([]), // { questionId: string, isCorrect: boolean }[]
-  startedAt: timestamp("started_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  totalQuestions: integer("total_questions").default(0),
+  correctAnswers: integer("correct_answers").default(0),
+  currentDifficulty: text("current_difficulty").default("easy"),
+  performanceHistory: text("performance_history", { mode: "json" }).$type<Array<{ questionId: string; isCorrect: boolean }>>().default([]),
+  isComplete: integer("is_complete", { mode: "boolean" }).default(false),
+  startedAt: text("started_at").$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Quiz attempts
-export const quizAttempts = pgTable("quiz_attempts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  quizId: varchar("quiz_id").references(() => quizzes.id).notNull(),
-  answers: jsonb("answers").notNull(), // User's answers
+export const quizAttempts = sqliteTable("quiz_attempts", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  quizId: text("quiz_id").references(() => quizzes.id).notNull(),
+  answers: text("answers", { mode: "json" }).$type<any>().notNull(), // User's answers
   score: integer("score").notNull(), // percentage
   timeSpent: integer("time_spent"), // seconds
-  difficulty: quizDifficultyEnum("difficulty").notNull(),
-  isPassed: boolean("is_passed").notNull(),
-  completedAt: timestamp("completed_at").defaultNow(),
+  difficulty: text("difficulty").notNull(), // easy, medium, hard
+  isPassed: integer("is_passed", { mode: "boolean" }).notNull(),
+  completedAt: text("completed_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Community posts
-export const posts = pgTable("posts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+export const posts = sqliteTable("posts", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
-  tags: jsonb("tags"), // Array of tag strings
+  tags: text("tags", { mode: "json" }).$type<string[]>(), // Array of tag strings
   likes: integer("likes").default(0),
   comments: integer("comments").default(0),
   shares: integer("shares").default(0),
-  isAchievement: boolean("is_achievement").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  isAchievement: integer("is_achievement", { mode: "boolean" }).default(false),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Post interactions
-export const postInteractions = pgTable("post_interactions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  postId: varchar("post_id").references(() => posts.id).notNull(),
-  type: varchar("type").notNull(), // like, comment, share
-  createdAt: timestamp("created_at").defaultNow(),
+export const postInteractions = sqliteTable("post_interactions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  postId: text("post_id").references(() => posts.id).notNull(),
+  type: text("type").notNull(), // like, comment, share
+  content: text("content"), // for comments
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // AI tutor conversations
-export const aiConversations = pgTable("ai_conversations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  messages: jsonb("messages").notNull(), // Array of message objects
-  context: varchar("context"), // course, quiz, general
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const aiConversations = sqliteTable("ai_conversations", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  messages: text("messages", { mode: "json" }).$type<Array<{ role: string; content: string }>>().notNull(),
+  context: text("context"), // course, quiz, general
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // User progress analytics
-export const userAnalytics = pgTable("user_analytics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  date: timestamp("date").defaultNow(),
+export const userAnalytics = sqliteTable("user_analytics", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id).notNull(),
+  date: text("date").$defaultFn(() => new Date().toISOString().split('T')[0]),
   sessionsCount: integer("sessions_count").default(0),
   timeSpent: integer("time_spent").default(0), // minutes
   xpEarned: integer("xp_earned").default(0),
@@ -204,24 +198,24 @@ export const userAnalytics = pgTable("user_analytics", {
 });
 
 // Study groups
-export const studyGroups = pgTable("study_groups", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const studyGroups = sqliteTable("study_groups", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
   description: text("description"),
-  courseId: varchar("course_id").references(() => courses.id),
-  creatorId: varchar("creator_id").references(() => users.id).notNull(),
+  courseId: text("course_id").references(() => courses.id),
+  creatorId: text("creator_id").references(() => users.id).notNull(),
   memberCount: integer("member_count").default(1),
-  isPublic: boolean("is_public").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+  isPublic: integer("is_public", { mode: "boolean" }).default(true),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Study group memberships
-export const studyGroupMembers = pgTable("study_group_members", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  groupId: varchar("group_id").references(() => studyGroups.id).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  role: varchar("role").default("member"), // member, admin
-  joinedAt: timestamp("joined_at").defaultNow(),
+export const studyGroupMembers = sqliteTable("study_group_members", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  groupId: text("group_id").references(() => studyGroups.id).notNull(),
+  userId: text("user_id").references(() => users.id).notNull(),
+  role: text("role").default("member"), // member, admin
+  joinedAt: text("joined_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // Relations
@@ -270,6 +264,10 @@ export const questionsRelations = relations(questions, ({ one }) => ({
     fields: [questions.courseId],
     references: [courses.id],
   }),
+  quiz: one(quizzes, {
+    fields: [questions.quizId],
+    references: [quizzes.id],
+  }),
 }));
 
 export const userQuizSessionsRelations = relations(userQuizSessions, ({ one }) => ({
@@ -280,10 +278,6 @@ export const userQuizSessionsRelations = relations(userQuizSessions, ({ one }) =
   quiz: one(quizzes, {
     fields: [userQuizSessions.quizId],
     references: [quizzes.id],
-  }),
-  currentQuestion: one(questions, {
-    fields: [userQuizSessions.currentQuestionId],
-    references: [questions.id],
   }),
 }));
 
@@ -329,8 +323,11 @@ export type UserBadge = typeof userBadges.$inferSelect;
 export type InsertPost = typeof posts.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 
+export type InsertPostInteraction = typeof postInteractions.$inferInsert;
+export type PostInteraction = typeof postInteractions.$inferSelect;
+
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
-export type AiConversation = typeof aiConversations.$inferInsert;
+export type AiConversation = typeof aiConversations.$inferSelect;
 
 export type InsertUserAnalytics = typeof userAnalytics.$inferInsert;
 export type UserAnalytics = typeof userAnalytics.$inferSelect;
@@ -395,12 +392,15 @@ export const generateQuizQuestionsSchema = z.object({
 
 export const submitAnswerSchema = z.object({
   questionId: z.string().min(1),
-  selectedOption: z.string().min(1), // Assuming selected option is a string ID or value
+  selectedOption: z.number().min(0),
 });
 
 export const aiTutorRequestSchema = z.object({
   question: z.string().min(1),
-  context: z.string().optional(),
+  context: z.array(z.object({
+    role: z.string(),
+    content: z.string(),
+  })).optional(),
 });
 
 export const updateXPSchema = z.object({

@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
-import { auth, isFirebaseConfigured } from '@/lib/firebase';
-import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
+import { useLocation } from 'wouter';
 
 export interface ExtendedUser {
   id: string;
@@ -25,10 +22,23 @@ export interface ExtendedUser {
   updatedAt?: string;
 }
 
-// TEMPORARY: Simulating auth flow for testing - simplified version
+// Get the current user id from localStorage — used by queryClient and other modules
+export function getCurrentUserId(): string | null {
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      return JSON.parse(storedUser).id || null;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     // Check for stored user data
@@ -36,14 +46,18 @@ export function useAuth() {
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+        setUser(prevUser => {
+          if (JSON.stringify(prevUser) !== storedUser) {
+            return parsedUser;
+          }
+          return prevUser;
+        });
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
       }
     }
 
-    // Simulate loading delay
     const timer = setTimeout(() => setIsLoading(false), 100);
     return () => clearTimeout(timer);
   }, []);
@@ -56,12 +70,12 @@ export function useAuth() {
     });
 
     if (!response.ok) {
-      throw new Error('Sign in failed');
+      const error = await response.json().catch(() => ({ message: 'Sign in failed' }));
+      throw new Error(error.message || 'Sign in failed');
     }
 
     const data = await response.json();
     setUser(data.user);
-    // Store in localStorage for persistence
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   };
@@ -79,16 +93,17 @@ export function useAuth() {
     });
 
     if (!response.ok) {
-      throw new Error('Sign up failed');
+      const error = await response.json().catch(() => ({ message: 'Sign up failed' }));
+      throw new Error(error.message || 'Sign up failed');
     }
 
     const result = await response.json();
     setUser(result.user);
+    localStorage.setItem('user', JSON.stringify(result.user));
     return result;
   };
 
   const completeOnboarding = async (data: {
-    username: string;
     grade: number;
     board: string;
     subjects: string[];
@@ -97,27 +112,40 @@ export function useAuth() {
 
     const response = await fetch(`/api/auth/onboard/${user.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': user.id,
+      },
+      body: JSON.stringify({
+        grade: data.grade,
+        board: data.board,
+        subjects: data.subjects,
+        isOnboarded: true,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error('Onboarding failed');
+      const errorData = await response.json().catch(() => ({ message: 'Onboarding failed' }));
+      throw new Error(errorData.message || 'Onboarding failed');
     }
 
-    // Update the user with onboarding data
-    setUser({ ...user, ...data, isOnboarded: true });
-
-    // Set up a small delay to ensure state is updated before redirect
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 100);
-
-    return response.json();
+    const result = await response.json();
+    setUser(result.user);
+    localStorage.setItem('user', JSON.stringify(result.user));
+    // Don't navigate here — the Onboarding component calls onComplete 
+    // which triggers window.location.reload() in App.tsx
+    return result;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore network errors during logout
+    }
     setUser(null);
+    localStorage.removeItem('user');
+    navigate('/auth');
   };
 
   return {

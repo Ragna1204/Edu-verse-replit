@@ -4,12 +4,14 @@ import {
   enrollments,
   quizzes,
   quizAttempts,
+  questions,
   badges,
   userBadges,
   posts,
   postInteractions,
   aiConversations,
   userAnalytics,
+  userQuizSessions,
   studyGroups,
   studyGroupMembers,
   type User,
@@ -27,28 +29,33 @@ import {
   type InsertPost,
   type AiConversation,
   type InsertAiConversation,
+  type Question,
+  type UserQuizSession,
+  type InsertUserQuizSession,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, gte, lte, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lte, inArray, like } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  updateUserOnboarding(userId: string, data: { username: string; grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void>;
-  
+  updateUserOnboarding(userId: string, data: { grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+
   // Course operations
   getCourses(category?: string): Promise<Course[]>;
   getCourse(id: string): Promise<Course | undefined>;
   createCourse(course: InsertCourse): Promise<Course>;
   updateCourse(id: string, updates: Partial<InsertCourse>): Promise<Course>;
+  deleteCourse(id: string): Promise<void>;
   getEducatorCourses(educatorId: string): Promise<Course[]>;
-  
+
   // Enrollment operations
   enrollUser(userId: string, courseId: string): Promise<Enrollment>;
   getUserEnrollments(userId: string): Promise<Enrollment[]>;
   updateEnrollmentProgress(userId: string, courseId: string, progress: number, completedModules: number): Promise<void>;
-  
+
   // Quiz operations
   getQuizzesByCourse(courseId: string): Promise<Quiz[]>;
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
@@ -57,24 +64,33 @@ export interface IStorage {
   submitQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getUserQuizAttempts(userId: string): Promise<QuizAttempt[]>;
   getEducatorQuizzes(educatorId: string): Promise<Quiz[]>;
-  
+
+  // Question operations
+  getQuestionsByQuiz(quizId: string): Promise<Question[]>;
+  getQuestionsByDifficulty(quizId: string, difficulty: string): Promise<Question[]>;
+
+  // Quiz session operations
+  createQuizSession(session: InsertUserQuizSession): Promise<UserQuizSession>;
+  getQuizSession(sessionId: string): Promise<UserQuizSession | undefined>;
+  updateQuizSession(sessionId: string, updates: Partial<UserQuizSession>): Promise<UserQuizSession>;
+
   // Badge operations
   getBadges(): Promise<Badge[]>;
   getUserBadges(userId: string): Promise<Badge[]>;
   awardBadge(userId: string, badgeId: string): Promise<void>;
-  
+
   // Leaderboard operations
   getLeaderboard(timeFrame: 'weekly' | 'monthly' | 'alltime', limit?: number): Promise<User[]>;
-  
+
   // Community operations
-  getPosts(limit?: number, offset?: number): Promise<Post[]>;
+  getPosts(limit?: number, offset?: number): Promise<(Post & { author?: { firstName: string | null; lastName: string | null; username: string | null; profileImageUrl: string | null } })[]>;
   createPost(post: InsertPost): Promise<Post>;
   likePost(userId: string, postId: string): Promise<void>;
-  
+
   // AI operations
   saveConversation(conversation: InsertAiConversation): Promise<AiConversation>;
   getUserConversations(userId: string): Promise<AiConversation[]>;
-  
+
   // Analytics operations
   updateUserXP(userId: string, xp: number): Promise<void>;
   updateUserStreak(userId: string, streak: number): Promise<void>;
@@ -91,31 +107,37 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
 
-  async updateUserOnboarding(userId: string, data: { username: string; grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void> {
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existing = userData.id ? await this.getUser(userData.id) : undefined;
+    if (existing) {
+      const [user] = await db
+        .update(users)
+        .set({
+          ...userData,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(users.id, userData.id!))
+        .returning();
+      return user;
+    }
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUserOnboarding(userId: string, data: { grade: number; board: string; subjects: string[]; isOnboarded: boolean }): Promise<void> {
     await db
       .update(users)
       .set({
-        username: data.username,
         grade: data.grade,
         board: data.board,
         subjects: data.subjects,
         isOnboarded: data.isOnboarded,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(users.id, userId));
   }
@@ -132,7 +154,7 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(desc(courses.createdAt));
     }
-    
+
     return await db
       .select()
       .from(courses)
@@ -153,10 +175,14 @@ export class DatabaseStorage implements IStorage {
   async updateCourse(id: string, updates: Partial<InsertCourse>): Promise<Course> {
     const [updatedCourse] = await db
       .update(courses)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date().toISOString() })
       .where(eq(courses.id, id))
       .returning();
     return updatedCourse;
+  }
+
+  async deleteCourse(id: string): Promise<void> {
+    await db.delete(courses).where(eq(courses.id, id));
   }
 
   async getEducatorCourses(educatorId: string): Promise<Course[]> {
@@ -165,17 +191,25 @@ export class DatabaseStorage implements IStorage {
 
   // Enrollment operations
   async enrollUser(userId: string, courseId: string): Promise<Enrollment> {
+    // Check if already enrolled
+    const [existing] = await db.select().from(enrollments)
+      .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)));
+
+    if (existing) {
+      return existing;
+    }
+
     const [enrollment] = await db
       .insert(enrollments)
       .values({ userId, courseId })
       .returning();
-    
+
     // Update course enrollment count
     await db
       .update(courses)
       .set({ enrollmentCount: sql`${courses.enrollmentCount} + 1` })
       .where(eq(courses.id, courseId));
-    
+
     return enrollment;
   }
 
@@ -186,11 +220,11 @@ export class DatabaseStorage implements IStorage {
   async updateEnrollmentProgress(userId: string, courseId: string, progress: number, completedModules: number): Promise<void> {
     await db
       .update(enrollments)
-      .set({ 
-        progress, 
+      .set({
+        progress,
         completedModules,
         isCompleted: progress >= 100,
-        completedAt: progress >= 100 ? new Date() : null
+        completedAt: progress >= 100 ? new Date().toISOString() : null
       })
       .where(and(
         eq(enrollments.userId, userId),
@@ -224,68 +258,64 @@ export class DatabaseStorage implements IStorage {
 
   async submitQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
     const [quizAttempt] = await db.insert(quizAttempts).values(attempt).returning();
-    
+
     // Award XP based on score
-    const xpEarned = Math.floor(attempt.score * 10); // 10 XP per percentage point
+    const xpEarned = Math.floor(attempt.score * 10);
     await this.updateUserXP(attempt.userId, xpEarned);
 
-    // Update user analytics
-    await this.updateUserAnalytics(attempt.userId);
-    
     return quizAttempt;
   }
 
-  async updateUserAnalytics(userId: string): Promise<void> {
-    const userQuizAttempts = await this.getUserQuizAttempts(userId);
-    const userEnrollments = await this.getUserEnrollments(userId);
-
-    const quizzesCompleted = new Set(userQuizAttempts.map(a => a.quizId)).size;
-    const totalScore = userQuizAttempts.reduce((sum, a) => sum + a.score, 0);
-    const accuracyRate = userQuizAttempts.length > 0 ? totalScore / userQuizAttempts.length : 0;
-    const timeSpent = userQuizAttempts.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
-
-    const today = new Date().toISOString().split('T')[0];
-
-    await db.insert(userAnalytics)
-      .values({
-        userId,
-        date: new Date(today),
-        quizzesCompleted,
-        accuracyRate,
-        timeSpent: Math.floor(timeSpent / 60),
-      })
-      .onConflictDoUpdate({
-        target: [userAnalytics.userId, userAnalytics.date],
-        set: {
-          quizzesCompleted,
-          accuracyRate,
-          timeSpent: Math.floor(timeSpent / 60),
-        }
-      });
-  }
-
   async getUserQuizAttempts(userId: string): Promise<QuizAttempt[]> {
-    return await db.select().from(quizAttempts).where(eq(quizAttempts.userId, userId));
+    return await db.select().from(quizAttempts).where(eq(quizAttempts.userId, userId)).orderBy(desc(quizAttempts.completedAt));
   }
 
   async getEducatorQuizzes(educatorId: string): Promise<Quiz[]> {
-    // Get quizzes through courses owned by the educator
     const educatorCourses = await db
       .select({ id: courses.id })
       .from(courses)
       .where(eq(courses.educatorId, educatorId));
-    
+
     const courseIds = educatorCourses.map(c => c.id);
-    
+
     if (courseIds.length === 0) {
       return [];
     }
-    
+
     return await db
       .select()
       .from(quizzes)
       .where(inArray(quizzes.courseId, courseIds))
       .orderBy(desc(quizzes.createdAt));
+  }
+
+  // Question operations
+  async getQuestionsByQuiz(quizId: string): Promise<Question[]> {
+    return await db.select().from(questions).where(eq(questions.quizId, quizId));
+  }
+
+  async getQuestionsByDifficulty(quizId: string, difficulty: string): Promise<Question[]> {
+    return await db.select().from(questions)
+      .where(and(eq(questions.quizId, quizId), eq(questions.difficulty, difficulty)));
+  }
+
+  // Quiz session operations
+  async createQuizSession(session: InsertUserQuizSession): Promise<UserQuizSession> {
+    const [newSession] = await db.insert(userQuizSessions).values(session).returning();
+    return newSession;
+  }
+
+  async getQuizSession(sessionId: string): Promise<UserQuizSession | undefined> {
+    const [session] = await db.select().from(userQuizSessions).where(eq(userQuizSessions.id, sessionId));
+    return session;
+  }
+
+  async updateQuizSession(sessionId: string, updates: Partial<UserQuizSession>): Promise<UserQuizSession> {
+    const [updated] = await db.update(userQuizSessions)
+      .set({ ...updates, updatedAt: new Date().toISOString() })
+      .where(eq(userQuizSessions.id, sessionId))
+      .returning();
+    return updated;
   }
 
   // Badge operations
@@ -299,54 +329,51 @@ export class DatabaseStorage implements IStorage {
       .from(userBadges)
       .innerJoin(badges, eq(userBadges.badgeId, badges.id))
       .where(eq(userBadges.userId, userId));
-    
+
     return userBadgeData.map(row => row.badge);
   }
 
   async awardBadge(userId: string, badgeId: string): Promise<void> {
-    await db.insert(userBadges).values({ userId, badgeId });
+    // Check if already awarded
+    const [existing] = await db.select().from(userBadges)
+      .where(and(eq(userBadges.userId, userId), eq(userBadges.badgeId, badgeId)));
+    if (!existing) {
+      await db.insert(userBadges).values({ userId, badgeId });
+    }
   }
 
   // Leaderboard operations
   async getLeaderboard(timeFrame: 'weekly' | 'monthly' | 'alltime', limit: number = 100): Promise<User[]> {
-    let dateFilter;
-    const now = new Date();
-    
-    switch (timeFrame) {
-      case 'weekly':
-        dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'monthly':
-        dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        dateFilter = null;
-    }
-
-    if (dateFilter) {
-      return await db
-        .select()
-        .from(users)
-        .where(gte(users.lastActiveDate, dateFilter))
-        .orderBy(desc(users.xp))
-        .limit(limit);
-    }
-
     return await db
       .select()
       .from(users)
+      .where(eq(users.isOnboarded, true))
       .orderBy(desc(users.xp))
       .limit(limit);
   }
 
   // Community operations
-  async getPosts(limit: number = 20, offset: number = 0): Promise<Post[]> {
-    return await db
-      .select()
+  async getPosts(limit: number = 20, offset: number = 0): Promise<(Post & { author?: { firstName: string | null; lastName: string | null; username: string | null; profileImageUrl: string | null } })[]> {
+    const result = await db
+      .select({
+        post: posts,
+        author: {
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username,
+          profileImageUrl: users.profileImageUrl,
+        },
+      })
       .from(posts)
+      .leftJoin(users, eq(posts.userId, users.id))
       .orderBy(desc(posts.createdAt))
       .limit(limit)
       .offset(offset);
+
+    return result.map(r => ({
+      ...r.post,
+      author: r.author ?? undefined,
+    }));
   }
 
   async createPost(post: InsertPost): Promise<Post> {
@@ -371,7 +398,7 @@ export class DatabaseStorage implements IStorage {
         postId,
         type: 'like'
       });
-      
+
       // Update post likes count
       await db
         .update(posts)
@@ -396,33 +423,34 @@ export class DatabaseStorage implements IStorage {
 
   // Analytics operations
   async updateUserXP(userId: string, xpToAdd: number): Promise<void> {
-    const [user] = await db
+    await db
       .update(users)
-      .set({ 
+      .set({
         xp: sql`${users.xp} + ${xpToAdd}`,
-        level: sql`FLOOR((${users.xp} + ${xpToAdd}) / 1000) + 1`
+        level: sql`(${users.xp} + ${xpToAdd}) / 1000 + 1`,
+        lastActiveDate: new Date().toISOString(),
       })
-      .where(eq(users.id, userId))
-      .returning();
+      .where(eq(users.id, userId));
   }
 
   async updateUserStreak(userId: string, streak: number): Promise<void> {
     await db
       .update(users)
-      .set({ streak, lastActiveDate: new Date() })
+      .set({ streak, lastActiveDate: new Date().toISOString() })
       .where(eq(users.id, userId));
   }
 
   async getUserAnalytics(userId: string, days: number): Promise<any[]> {
     const dateFrom = new Date();
     dateFrom.setDate(dateFrom.getDate() - days);
-    
+    const dateStr = dateFrom.toISOString().split('T')[0];
+
     return await db
       .select()
       .from(userAnalytics)
       .where(and(
         eq(userAnalytics.userId, userId),
-        gte(userAnalytics.date, dateFrom)
+        gte(userAnalytics.date, dateStr)
       ))
       .orderBy(desc(userAnalytics.date));
   }
@@ -430,10 +458,10 @@ export class DatabaseStorage implements IStorage {
   async getRecentActivity(userId: string): Promise<any[]> {
     const enrollmentActivity = await db
       .select({
-        type: sql`'course_enrollment' as type`,
+        type: sql<string>`'course_enrollment'`,
         title: courses.title,
         date: enrollments.enrolledAt,
-        id: enrollments.id
+        id: enrollments.id,
       })
       .from(enrollments)
       .innerJoin(courses, eq(enrollments.courseId, courses.id))
@@ -443,10 +471,10 @@ export class DatabaseStorage implements IStorage {
 
     const quizActivity = await db
       .select({
-        type: sql`'quiz_completed' as type`,
+        type: sql<string>`'quiz_completed'`,
         title: quizzes.title,
         date: quizAttempts.completedAt,
-        id: quizAttempts.id
+        id: quizAttempts.id,
       })
       .from(quizAttempts)
       .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
@@ -456,10 +484,10 @@ export class DatabaseStorage implements IStorage {
 
     const badgeActivity = await db
       .select({
-        type: sql`'badge_earned' as type`,
+        type: sql<string>`'badge_earned'`,
         title: badges.name,
         date: userBadges.earnedAt,
-        id: userBadges.id
+        id: userBadges.id,
       })
       .from(userBadges)
       .innerJoin(badges, eq(userBadges.badgeId, badges.id))
@@ -479,42 +507,41 @@ export class DatabaseStorage implements IStorage {
       return dateB - dateA;
     });
 
-    return allActivities.slice(0, 5);
+    return allActivities.slice(0, 10);
   }
 
   async getAnalyticsSummary(userId: string, days: number): Promise<any[]> {
     const dateFrom = new Date();
     dateFrom.setDate(dateFrom.getDate() - days);
+    const dateStr = dateFrom.toISOString().split('T')[0];
 
     const analyticsData = await db
       .select()
       .from(userAnalytics)
       .where(and(
         eq(userAnalytics.userId, userId),
-        gte(userAnalytics.date, dateFrom)
+        gte(userAnalytics.date, dateStr)
       ))
       .orderBy(userAnalytics.date);
 
     let accumulatedXp = 0;
-    const summary = analyticsData.map(data => {
+    return analyticsData.map(data => {
       accumulatedXp += data.xpEarned || 0;
       return {
-        date: data.date ? data.date.toISOString().split('T')[0] : '',
+        date: data.date || '',
         xpEarned: data.xpEarned || 0,
-        accumulatedXp: accumulatedXp,
+        accumulatedXp,
         quizzesCompleted: data.quizzesCompleted || 0,
         accuracyRate: data.accuracyRate || 0,
       };
     });
-
-    return summary;
   }
 
   async getAccuracyRatePerTopic(userId: string): Promise<any[]> {
     const result = await db
       .select({
         topic: courses.category,
-        averageScore: sql<number>`AVG(${quizAttempts.score})`.mapWith(Number),
+        averageScore: sql<number>`AVG(${quizAttempts.score})`,
       })
       .from(quizAttempts)
       .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))

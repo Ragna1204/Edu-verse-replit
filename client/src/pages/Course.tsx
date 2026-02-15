@@ -1,11 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
-import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -127,34 +126,30 @@ export default function Course() {
 
   if (authLoading || isLoading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary" />
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (!courseData) {
     return (
-      <Layout>
-        <div className="py-8">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Card className="glass-card">
-              <CardContent className="p-12 text-center">
-                <div className="text-6xl text-muted-foreground mb-4">📚</div>
-                <h3 className="text-xl font-semibold mb-2">Course Not Found</h3>
-                <p className="text-muted-foreground mb-6">
-                  The course you're looking for doesn't exist or has been removed.
-                </p>
-                <Button asChild>
-                  <Link href="/courses">Back to Courses</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+      <div className="py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="glass-card">
+            <CardContent className="p-12 text-center">
+              <div className="text-6xl text-muted-foreground mb-4">📚</div>
+              <h3 className="text-xl font-semibold mb-2">Course Not Found</h3>
+              <p className="text-muted-foreground mb-6">
+                The course you're looking for doesn't exist or has been removed.
+              </p>
+              <Button asChild>
+                <Link href="/courses">Back to Courses</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
-      </Layout>
+      </div>
     );
   }
 
@@ -179,7 +174,7 @@ export default function Course() {
   };
 
   return (
-    <Layout>
+    <div className="py-8">
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
@@ -439,6 +434,6 @@ export default function Course() {
           </div>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 }

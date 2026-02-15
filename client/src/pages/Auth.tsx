@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, User, Lock, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Loader2, User, Lock, ArrowRight, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { signInSchema, signUpSchema, SignInFormData, SignUpFormData } from '@/lib/authSchemas';
 
 interface AuthProps {
@@ -56,8 +56,8 @@ export function Auth({ onAuthSuccess }: AuthProps) {
       }
 
       const result = await response.json();
-      // Store user session or token as needed
-      localStorage.setItem('userId', result.user.id);
+      // Store user data for persistence
+      localStorage.setItem('user', JSON.stringify(result.user));
       // Refresh the page to trigger auth hooks and routing
       window.location.reload();
     } catch (error: any) {
@@ -109,16 +109,32 @@ export function Auth({ onAuthSuccess }: AuthProps) {
     setError('Google authentication is not available. Please use username and password.');
   };
 
+  const handleBack = () => {
+    window.location.href = '/';
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-primary/5 p-4">
       <div className="cosmic-bg"></div>
       <div className="cosmic-particles"></div>
       <Card className="w-full max-w-md glass-card">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Welcome to EduVerse</CardTitle>
-          <CardDescription className="text-center">
-            Your AI-powered learning companion
-          </CardDescription>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="p-2 -mr-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1">
+              <CardTitle className="text-2xl text-center">Welcome to EduVerse</CardTitle>
+              <CardDescription className="text-center">
+                Your AI-powered learning companion
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
 
         <CardContent>

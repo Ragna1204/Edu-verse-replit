@@ -15,6 +15,7 @@ import EducatorQuizzes from "@/pages/educator/Quizzes";
 import QuizForm from "@/pages/educator/QuizForm";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
+import Course from "@/pages/Course";
 import Layout from "@/components/Layout";
 import { Auth } from "@/pages/Auth";
 import { Onboarding } from "@/pages/Onboarding";
@@ -61,24 +62,47 @@ export default function Router() {
               <Onboarding
                 onComplete={() => window.location.reload()}
                 initialData={user ? {
-                  email: user.email,
-                  firstName: user.firstName,
-                  lastName: user.lastName
+                  email: user.email || '',
+                  firstName: user.firstName || '',
+                  lastName: user.lastName || ''
                 } : undefined}
               />
             </Route>
           </>
-        ) : user && (!user.isOnboarded || !user.username) ? (
-          <Route path="/">
-            <Onboarding
-              onComplete={() => window.location.reload()}
-              initialData={{
-                email: user.email,
-                firstName: user.firstName,
-                lastName: user.lastName
-              }}
-            />
-          </Route>
+        ) : !user?.isOnboarded ? (
+          <>
+            <Route path="/onboarding">
+              <Onboarding
+                onComplete={() => window.location.reload()}
+                initialData={user ? {
+                  email: user.email || '',
+                  firstName: user.firstName || '',
+                  lastName: user.lastName || ''
+                } : undefined}
+              />
+            </Route>
+            <Route path="/">
+              <Onboarding
+                onComplete={() => window.location.reload()}
+                initialData={user ? {
+                  email: user.email || '',
+                  firstName: user.firstName || '',
+                  lastName: user.lastName || ''
+                } : undefined}
+              />
+            </Route>
+            {/* Catch all unknown routes and redirect to onboarding */}
+            <Route component={() => (
+              <Onboarding
+                onComplete={() => window.location.reload()}
+                initialData={user ? {
+                  email: user.email || '',
+                  firstName: user.firstName || '',
+                  lastName: user.lastName || ''
+                } : undefined}
+              />
+            )} />
+          </>
         ) : (
           <>
             <Route path="/">
@@ -90,6 +114,13 @@ export default function Router() {
               <div className="content-wrapper">
                 <Courses />
               </div>
+            </Route>
+            <Route path="/course/:id">
+              {(params) => (
+                <div className="content-wrapper">
+                  <Course />
+                </div>
+              )}
             </Route>
             <Route path="/quiz/:quizId?">
               {(params) => (
@@ -152,7 +183,6 @@ export default function Router() {
                 </div>
               )}
             </Route>
-            <Route component={NotFound} />
           </>
         )}
       </Switch>

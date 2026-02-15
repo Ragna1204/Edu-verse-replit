@@ -4,7 +4,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function generateTutorResponse(question: string, context?: any[]): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction: `You are EduBot, an AI learning assistant for EduVerse, an educational platform. 
       You help students understand concepts, solve problems, and provide guidance. 
@@ -40,7 +40,7 @@ export async function generateQuizQuestions(topic: string, difficulty: 'easy' | 
   Make questions engaging and educational. Format as valid JSON.`;
 
   try {
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       generationConfig: {
         responseMimeType: "application/json"
@@ -68,7 +68,7 @@ export async function provideLearningRecommendations(userProgress: any, weakArea
   Return recommendations as a JSON array of strings. Each recommendation should be actionable and specific. Format as valid JSON array.`;
 
   try {
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       generationConfig: {
         responseMimeType: "application/json"
@@ -87,7 +87,7 @@ export async function provideLearningRecommendations(userProgress: any, weakArea
 }
 
 export async function adaptQuizDifficulty(previousAnswers: any[], currentDifficulty: string): Promise<'easy' | 'medium' | 'hard'> {
-  const recentCorrect = previousAnswers.slice(-5).filter(a => a.correct).length;
+  const recentCorrect = previousAnswers.slice(-5).filter(a => a.isCorrect).length;
   const accuracy = recentCorrect / Math.min(previousAnswers.length, 5);
 
   // Adaptive logic

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, User, BookOpen, GraduationCap, Check, ArrowRight } from 'lucide-react';
 import { onboardingSchema, OnboardingFormData } from '@/lib/authSchemas';
+import { useAuth } from '@/hooks/useAuth';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -31,7 +32,8 @@ const boards = [
   'CBSE', 'ICSE', 'State Board', 'IB', 'Cambridge', 'Others'
 ];
 
-export function Onboarding({ onComplete, initialData }: OnboardingProps) {
+export function Onboarding({ onComplete, initialData, skipButton }: OnboardingProps & { skipButton?: boolean }) {
+  const { completeOnboarding } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,6 @@ export function Onboarding({ onComplete, initialData }: OnboardingProps) {
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      username: '',
       grade: 9,
       board: '',
       subjects: [],
@@ -47,51 +48,39 @@ export function Onboarding({ onComplete, initialData }: OnboardingProps) {
   });
 
   const handleSubjectToggle = (subject: string) => {
-    setSelectedSubjects(prev =>
-      prev.includes(subject)
-        ? prev.filter(s => s !== subject)
-        : [...prev, subject]
-    );
-    form.setValue('subjects', selectedSubjects.includes(subject)
+    const newSelectedSubjects = selectedSubjects.includes(subject)
       ? selectedSubjects.filter(s => s !== subject)
-      : [...selectedSubjects, subject]);
+      : [...selectedSubjects, subject];
+
+    setSelectedSubjects(newSelectedSubjects);
+    form.setValue('subjects', newSelectedSubjects);
   };
 
   const onSubmit = async (data: OnboardingFormData) => {
+    console.log('Onboarding onSubmit called with data:', data);
     setIsLoading(true);
     setError(null);
 
     try {
-      // Get userId from localStorage (stored during signup)
-      const userId = localStorage.getItem('userId');
-
-      if (!userId) {
-        throw new Error('User session not found. Please sign in again.');
-      }
-
-      // Send onboarding data to backend
-      const response = await fetch(`/api/auth/onboard/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: data.username,
-          grade: data.grade,
-          board: data.board,
-          subjects: data.subjects,
-          isOnboarded: true,
-        }),
+      console.log('Calling completeOnboarding with:', {
+        grade: data.grade,
+        board: data.board,
+        subjects: data.subjects,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to complete onboarding');
-      }
+      // Send onboarding data to backend using the hook method
+      const response = await completeOnboarding({
+        grade: data.grade,
+        board: data.board,
+        subjects: data.subjects,
+      });
 
-      console.log('Onboarding completed successfully');
+      console.log('Onboarding completed successfully, response:', response);
+
+      // Call onComplete to trigger reload from App.tsx
       onComplete();
     } catch (error: any) {
+      console.error('Onboarding error:', error.message);
       setError(error.message);
     } finally {
       setIsLoading(false);
@@ -99,185 +88,189 @@ export function Onboarding({ onComplete, initialData }: OnboardingProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
-            <GraduationCap className="h-6 w-6" />
-            Complete Your Profile
-          </CardTitle>
-          <CardDescription className="text-center">
-            Help us personalize your learning experience
-          </CardDescription>
-        </CardHeader>
+    <div className="min-h-screen bg-background">
+      {/* Cosmic Background */}
+      <div className="fixed inset-0 bg-gradient-radial from-primary/10 via-transparent to-transparent pointer-events-none" />
+      <div className="fixed inset-0 bg-gradient-radial from-secondary/5 via-transparent to-transparent pointer-events-none" />
 
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* Animated particles */}
+      <div className="fixed inset-0 opacity-30 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(2px_2px_at_20%_30%,white,transparent),radial-gradient(2px_2px_at_60%_70%,white,transparent),radial-gradient(1px_1px_at_50%_50%,white,transparent),radial-gradient(1px_1px_at_80%_10%,white,transparent),radial-gradient(2px_2px_at_90%_60%,white,transparent),radial-gradient(1px_1px_at_33%_33%,white,transparent)] bg-[length:200%_200%] animate-[particle-drift_60s_linear_infinite]" />
+      </div>
 
-          {/* Welcome Section */}
-          <div className="mb-6 text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="h-8 w-8 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold">
-              Welcome, {initialData?.firstName} {initialData?.lastName}!
-            </h3>
-          </div>
+      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
+              <GraduationCap className="h-6 w-6" />
+              Complete Your Profile
+            </CardTitle>
+            <CardDescription className="text-center">
+              Help us personalize your learning experience
+            </CardDescription>
+          </CardHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Username */}
-            <div>
-              <Label htmlFor="username">Choose a Username</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="username"
-                  placeholder="Enter a unique username"
-                  className="pl-10"
-                  {...form.register('username')}
-                />
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Welcome Section */}
+            <div className="mb-6 text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="h-8 w-8 text-blue-600" />
               </div>
-              {form.formState.errors.username && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.username.message}
-                </p>
-              )}
+              <h3 className="text-lg font-semibold">
+                Welcome, {initialData?.firstName} {initialData?.lastName}!
+              </h3>
             </div>
 
-            {/* Grade and Board */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="grade">Grade</Label>
-                <Controller
-                  name="grade"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value.toString()}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your grade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
-                          <SelectItem key={grade} value={grade.toString()}>
-                            Grade {grade}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Grade and Board */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="grade">Grade</Label>
+                  <Controller
+                    name="grade"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value.toString()}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
+                            <SelectItem key={grade} value={grade.toString()}>
+                              Grade {grade}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.grade && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {form.formState.errors.grade.message}
+                    </p>
                   )}
-                />
-                {form.formState.errors.grade && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {form.formState.errors.grade.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="board">Board</Label>
-                <Controller
-                  name="board"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your board" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {boards.map((board) => (
-                          <SelectItem key={board} value={board} className="justify-between">
-                            {board}
-                            {board === 'CBSE' && (
-                              <Badge variant="secondary" className="ml-2">Most Common</Badge>
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {form.formState.errors.board && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {form.formState.errors.board.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Subjects */}
-            <div>
-              <Label className="text-base font-semibold">Select Your Subjects</Label>
-              <p className="text-sm text-gray-600 mb-4">
-                Choose the subjects you want to focus on in your learning journey
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {availableSubjects.map((subject) => (
-                  <div key={subject} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={subject}
-                      checked={selectedSubjects.includes(subject)}
-                      onCheckedChange={() => handleSubjectToggle(subject)}
-                    />
-                    <Label
-                      htmlFor={subject}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {subject}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-
-              {selectedSubjects.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium mb-2">Selected ({selectedSubjects.length})</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedSubjects.map((subject) => (
-                      <Badge key={subject} variant="secondary" className="flex items-center gap-1">
-                        <BookOpen className="h-3 w-3" />
-                        {subject}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-4 w-4 p-0 ml-1"
-                          onClick={() => handleSubjectToggle(subject)}
-                        >
-                          ×
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
-              )}
 
-              {form.formState.errors.subjects && (
-                <p className="text-sm text-red-600 mt-2">
-                  {form.formState.errors.subjects.message}
+                <div>
+                  <Label htmlFor="board">Board</Label>
+                  <Controller
+                    name="board"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your board" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {boards.map((board) => (
+                            <SelectItem key={board} value={board} className="justify-between">
+                              {board}
+                              {board === 'CBSE' && (
+                                <Badge variant="secondary" className="ml-2">Most Common</Badge>
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.board && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {form.formState.errors.board.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Subjects */}
+              <div>
+                <Label className="text-base font-semibold">Select Your Subjects</Label>
+                <p className="text-sm text-gray-600 mb-4">
+                  Choose the subjects you want to focus on in your learning journey
                 </p>
-              )}
-            </div>
 
-            {/* Submit Button */}
-            <Button type="submit" disabled={isLoading || selectedSubjects.length === 0} className="w-full">
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Complete Setup
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {availableSubjects.map((subject) => (
+                    <div key={subject} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={subject}
+                        checked={selectedSubjects.includes(subject)}
+                        onCheckedChange={() => handleSubjectToggle(subject)}
+                      />
+                      <Label
+                        htmlFor={subject}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {subject}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedSubjects.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Selected ({selectedSubjects.length})</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedSubjects.map((subject) => (
+                        <Badge key={subject} variant="secondary" className="flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" />
+                          {subject}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 ml-1"
+                            onClick={() => handleSubjectToggle(subject)}
+                          >
+                            ×
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {form.formState.errors.subjects && (
+                  <p className="text-sm text-red-600 mt-2">
+                    {form.formState.errors.subjects.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex flex-col gap-3">
+                <Button type="submit" disabled={isLoading || selectedSubjects.length === 0} className="w-full">
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Complete Setup
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+                {skipButton && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={onComplete}
+                    className="w-full"
+                  >
+                    Skip for now
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
