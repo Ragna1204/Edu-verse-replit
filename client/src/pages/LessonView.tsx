@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
     ArrowLeft,
     ArrowRight,
@@ -136,16 +140,27 @@ export default function LessonView() {
     const prevLesson = currentIndex > 0 ? lessonList[currentIndex - 1] : null;
     const nextLessonNav = currentIndex < lessonList.length - 1 ? lessonList[currentIndex + 1] : null;
 
-    // Quiz logic
-    let quizQuestions: QuizQuestion[] = [];
-    if (lesson.type === 'quiz') {
+    // Quiz logic — robust JSON parsing
+    const quizQuestions: QuizQuestion[] = useMemo(() => {
+        if (lesson?.type !== 'quiz') return [];
         try {
-            quizQuestions = JSON.parse(lesson.content);
-        } catch { quizQuestions = []; }
-    }
+            let parsed = lesson.content;
+            if (typeof parsed === 'string') {
+                parsed = JSON.parse(parsed);
+            }
+            // If Gemini nested the array inside an object
+            if (parsed && !Array.isArray(parsed) && parsed.questions) {
+                parsed = parsed.questions;
+            }
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter((q: any) => q.question && Array.isArray(q.options));
+        } catch {
+            return [];
+        }
+    }, [lesson]);
 
     const handleOptionSelect = (optionIndex: number) => {
-        if (showExplanation) return; // Prevent changing after answer
+        if (showExplanation) return;
         setSelectedOption(optionIndex);
     };
 
@@ -162,7 +177,6 @@ export default function LessonView() {
             setSelectedOption(null);
             setShowExplanation(false);
         } else {
-            // Quiz finished
             const correctCount = [...answers].filter(a => a).length;
             const score = Math.round((correctCount / quizQuestions.length) * 100);
             setQuizCompleted(true);
@@ -182,41 +196,49 @@ export default function LessonView() {
         completeMutation.mutate(undefined);
     };
 
-    // Render markdown content (simple renderer)
-    const renderMarkdown = (content: string) => {
-        // Simple markdown to HTML conversion
-        let html = content
-            // Code blocks
-            .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-muted/30 border border-border/50 rounded-lg p-4 my-4 overflow-x-auto text-sm font-mono"><code>$2</code></pre>')
-            // Inline code
-            .replace(/`([^`]+)`/g, '<code class="bg-muted/40 px-1.5 py-0.5 rounded text-sm font-mono text-primary">$1</code>')
-            // Headers
-            .replace(/^#### (.+)$/gm, '<h4 class="text-base font-bold mt-6 mb-2 text-foreground">$1</h4>')
-            .replace(/^### (.+)$/gm, '<h3 class="text-lg font-bold mt-8 mb-3 text-foreground">$1</h3>')
-            .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-8 mb-4 text-foreground border-b border-border/30 pb-2">$1</h2>')
-            // Bold
-            .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
-            // Italic
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            // Blockquote
-            .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-primary/50 pl-4 my-4 text-muted-foreground italic">$1</blockquote>')
-            // Tables
-            .replace(/\|(.+)\|/g, (match) => {
-                const cells = match.split('|').filter(c => c.trim());
-                const isHeader = cells.some(c => c.match(/^-+$/));
-                if (isHeader) return '';
-                const tag = 'td';
-                return `<tr>${cells.map(c => `<${tag} class="border border-border/30 px-3 py-2 text-sm">${c.trim()}</${tag}>`).join('')}</tr>`;
-            })
-            // Unordered lists
-            .replace(/^- (.+)$/gm, '<li class="ml-4 text-muted-foreground">$1</li>')
-            // Ordered lists
-            .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 text-muted-foreground list-decimal">$1</li>')
-            // Line breaks
-            .replace(/\n\n/g, '<br/><br/>')
-            .replace(/\n/g, '<br/>');
-
-        return html;
+    // Markdown components for react-markdown
+    const markdownComponents: any = {
+        code({ node, inline, className, children, ...props }: any) {
+            const match = /language-(\w+)/.exec(className || '');
+            return !inline && match ? (
+                <SyntaxHighlighter
+                    style={oneDark}
+                    language={match[1]}
+                    PreTag="div"
+                    className="rounded-xl my-4 !bg-[#1a1b26] border border-border/20"
+                    {...props}
+                >
+                    {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+            ) : (
+                <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                    {children}
+                </code>
+            );
+        },
+        h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-8 mb-4 text-foreground">{children}</h1>,
+        h2: ({ children }: any) => <h2 className="text-xl font-bold mt-8 mb-4 text-foreground border-b border-border/20 pb-2">{children}</h2>,
+        h3: ({ children }: any) => <h3 className="text-lg font-semibold mt-6 mb-3 text-foreground">{children}</h3>,
+        h4: ({ children }: any) => <h4 className="text-base font-semibold mt-5 mb-2 text-foreground">{children}</h4>,
+        p: ({ children }: any) => <p className="text-muted-foreground leading-relaxed mb-4">{children}</p>,
+        ul: ({ children }: any) => <ul className="list-disc pl-6 mb-4 space-y-1.5 text-muted-foreground">{children}</ul>,
+        ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-4 space-y-1.5 text-muted-foreground">{children}</ol>,
+        li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+        blockquote: ({ children }: any) => (
+            <blockquote className="border-l-4 border-primary/50 pl-4 my-4 text-muted-foreground italic bg-muted/10 py-2 rounded-r-lg">
+                {children}
+            </blockquote>
+        ),
+        table: ({ children }: any) => (
+            <div className="overflow-x-auto my-4 rounded-lg border border-border/30">
+                <table className="w-full text-sm">{children}</table>
+            </div>
+        ),
+        th: ({ children }: any) => <th className="bg-muted/30 px-4 py-2.5 text-left font-semibold text-foreground border-b border-border/30">{children}</th>,
+        td: ({ children }: any) => <td className="px-4 py-2.5 border-b border-border/20 text-muted-foreground">{children}</td>,
+        strong: ({ children }: any) => <strong className="font-semibold text-foreground">{children}</strong>,
+        a: ({ href, children }: any) => <a href={href} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+        hr: () => <hr className="my-6 border-border/30" />,
     };
 
     return (
@@ -259,10 +281,14 @@ export default function LessonView() {
                                 <CardTitle className="text-2xl">{lesson.title}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div
-                                    className="prose prose-invert max-w-none leading-relaxed"
-                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(lesson.content) }}
-                                />
+                                <div className="max-w-none">
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={markdownComponents}
+                                    >
+                                        {lesson.content}
+                                    </ReactMarkdown>
+                                </div>
                             </CardContent>
                         </Card>
 
